@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Project folders
+/.idea
+/bin
+/build
+
+# Environment Files
+.env
+.DS_Store
