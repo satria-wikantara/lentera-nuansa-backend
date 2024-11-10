@@ -54,7 +54,7 @@ For direct messages:
 ```json
 {
     "type": "direct_message",
-    "target": "user2",
+    "recipient": "user2",
     "content": "Hello user2!"
 }
 ```

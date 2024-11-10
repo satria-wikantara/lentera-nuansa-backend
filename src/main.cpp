@@ -3,11 +3,13 @@
 //
 
 #include "../include/app.h"
+#include "../include/global_config.h"
 
 int main(int argc, char *argv[]) {
      App::CheckForRootUser();
 
-     auto options = App::ParseCommandLine(argc, argv);
+     App::ProgramOptions options = App::ParseCommandLine(argc, argv);
+     App::g_runDebug = options.runDebug;
 
      App::Run(options);
 

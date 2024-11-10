@@ -26,8 +26,8 @@ namespace App {
 				("help,h", "Display this help message")
 				("verbose,v", po::bool_switch(&options.verbose), "Enable verbose output")
 				("command", po::value<std::string>(&options.command), "Command to execute")
-				("config,c", po::value<std::string>(&options.configFile), "Configuration file");
-
+				("config,c", po::value<std::string>(&options.configFile), "Configuration file")
+				("debug,d", po::bool_switch(&options.runDebug), "Run in debug mode");
 
 				po::positional_options_description p;
 				p.add("command", 1);
@@ -38,7 +38,7 @@ namespace App {
 					.options(desc)
                 	.positional(p)
                 	.run(), vm);
-                notify(vm);
+                po::notify(vm);
 
                 if (vm.count("help")) {
                 	std::cout << desc << std::endl;

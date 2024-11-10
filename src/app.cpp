@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "../include/app.h"
+#include "../include/chat_server.h"
 #include "../include/chat_server_handler.h"
 #include "../include/program_options.h"
 

@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Set the project name
-set(PROJECT_NAME kudeta)
+set(PROJECT_NAME lentera-nuances-backend)
 
 # Set the project
 project(${PROJECT_NAME} VERSION 1.0 LANGUAGES CXX)
@@ -29,7 +29,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/Release)
 add_executable(${PROJECT_NAME} ${SOURCES}
         include/chat_server_handler.h
         src/chat_server_handler.cpp
-        src/app.cpp)
+        src/app.cpp
+        include/chat_server.h
+        include/global_config.h
+        src/global_config.cpp)
 
 # Optionally, you can add include directories if needed
 # target_include_directories(${PROJECT_NAME} PRIVATE include)
