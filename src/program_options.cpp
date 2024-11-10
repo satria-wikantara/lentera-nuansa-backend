@@ -10,11 +10,7 @@
 namespace po = boost::program_options;
 
 namespace App {
-    void CheckForRootUser() {
-      	if (getuid() == 0) {
-           std::cerr << "Warning: running as root is not recommended. Please use a non-root user." << std::endl;
-      	}
-    }
+
 
     ProgramOptions ParseCommandLine(int argc, char* argv[]) {
 		ProgramOptions options;

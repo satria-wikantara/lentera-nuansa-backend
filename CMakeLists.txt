@@ -32,7 +32,9 @@ add_executable(${PROJECT_NAME} ${SOURCES}
         src/app.cpp
         include/chat_server.h
         include/global_config.h
-        src/global_config.cpp)
+        src/global_config.cpp
+        include/init.h
+        src/init.cpp)
 
 # Optionally, you can add include directories if needed
 # target_include_directories(${PROJECT_NAME} PRIVATE include)
@@ -41,12 +43,24 @@ add_executable(${PROJECT_NAME} ${SOURCES}
 # target_link_libraries(${PROJECT_NAME} some_library)
 
 # Find Boost
-find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS
+        program_options
+        log
+        log_setup
+)
 
-# Link Boost.Program_options
+# Link Boost Libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     Boost::program_options
+    Boost::log
+    Boost::log_setup
 )
+
+# On Unix-like systems, we need to link against pthread
+if(UNIX)
+    find_package(Threads REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
+endif()
 
 # Custom command to create the build directory if it doesn't exist
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)

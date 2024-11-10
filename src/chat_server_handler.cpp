@@ -1,12 +1,17 @@
 
-#include <nlohmann/json.hpp>
+
 #include <iostream>
 #include <regex>
+#include <chrono>
 #include <boost/beast/core.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include <chrono>
+#include <boost/log/trivial.hpp>
+#include <boost/log/expressions.hpp>
+#include <boost/log/utility/setup/console.hpp>
+#include <boost/log/utility/setup/common_attributes.hpp>
+#include <nlohmann/json.hpp>
 
 #include "../include/chat_server_handler.h"
 #include "../include/chat_server.h"
@@ -22,9 +27,7 @@ namespace App {
     void ChatServerHandler::HandleWebSocketSession(std::shared_ptr<websocket::stream<tcp::socket>> ws) {
         try {
             ws->accept();
-            if (App::g_runDebug) {
-                std::cout << "🔌 New websocket connection accepted" << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(info) << "New websocket connection accepted";
 
             beast::flat_buffer buffer;
             ws->read(buffer);
@@ -33,16 +36,12 @@ namespace App {
             nlohmann::json auth_data = nlohmann::json::parse(auth_message);
             std::string username = auth_data["username"];
 
-            if (App::g_runDebug) {
-                std::cout << "🔑 User authentication: " << username << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(debug) << "User authentication: " << username;
 
             {
                 std::lock_guard<std::mutex> lock(chatServer.clientsMutex);
                 chatServer.clients[username] = ChatClient{username, ws};
-                if (App::g_runDebug) {
-                    std::cout << "✅ User " << username << " added to active clients" << std::endl;
-                }
+                BOOST_LOG_TRIVIAL(debug) << "User " << username << " added to active clients";
             }
 
             BroadcastMessage("system", username + " has joined the chat");
@@ -56,15 +55,15 @@ namespace App {
                     nlohmann::json msgData = nlohmann::json::parse(message);
                     HandleMessage(username, msgData);
                 } catch (const nlohmann::json::exception& e) {
-                    std::cerr << "❌ JSON parsing error: " << e.what() << std::endl;
+                    BOOST_LOG_TRIVIAL(error) << "JSON parsing error: " << e.what();
                 }
             }
         } catch (beast::system_error const& se) {
             if (se.code() != websocket::error::closed) {
-                std::cerr << "❌ WebSocket error: " << se.code().message() << std::endl;
+                BOOST_LOG_TRIVIAL(error) << "WebSocket error: " << se.code().message();
             }
         } catch (std::exception const& e) {
-            std::cerr << "❌ Error: " << e.what() << std::endl;
+            BOOST_LOG_TRIVIAL(error) << "Error: " << e.what();
         }
 
         // Handle disconnection
@@ -75,9 +74,7 @@ namespace App {
                 if (it->second.GetWebSocket().get() == ws.get()) {
                     username = it->first;
                     chatServer.clients.erase(it);
-                    if (App::g_runDebug) {
-                        std::cout << "User " << username << " disconnected" << std::endl;
-                    }
+                    BOOST_LOG_TRIVIAL(debug) << "User " << username << " disconnected";
                     break;
                 }
             }
@@ -102,22 +99,18 @@ namespace App {
                 client.ws->text(true);
                 client.ws->write(net::buffer(messageStr));
             } catch (const std::exception& e) {
-                std::cerr << "Error broadcasting to " << username << ": " << e.what() << std::endl;
+                BOOST_LOG_TRIVIAL(error) << "Error broadcasting to " << username << ": " << e.what();
             }
         }
     }
 
     void ChatServerHandler::HandleMessage(const std::string& sender, const nlohmann::json& msgData) {
 
-        if (App::g_runDebug) {
-            std::cout << "📨 Received message from " << sender << ": " << msgData.dump(2) << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Received message from " << sender << ": " << msgData.dump(2);
 
         try {
             MessageType type = msgData["type"].get<MessageType>();
-            if (App::g_runDebug) {
-                std::cout << "🔍 Processing message type: " << msgData["type"] << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(debug) << "Processing message type: " << msgData["type"];
 
             switch (type) {
                 case MessageType::New:
@@ -134,14 +127,13 @@ namespace App {
                     break;
             }
         } catch (const std::exception& e) {
-            std::cerr << "❌ Error processing message: " << e.what() << std::endl;
+            BOOST_LOG_TRIVIAL(error) << "Error processing message: " << e.what();
         }
     }
 
     void ChatServerHandler::HandleNewMessage(const std::string& sender, const nlohmann::json& msgData) {
-        if (App::g_runDebug) {
-            std::cout << "📝 Creating new message from " << sender << std::endl;
-        }
+
+        BOOST_LOG_TRIVIAL(debug) << "Creating new message from " << sender;
 
         boost::uuids::random_generator gen;
         Message msg {
@@ -152,25 +144,22 @@ namespace App {
             .timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())
         };
 
-        if (App::g_runDebug) {
-            std::cout << "🆔Generated message ID: " << msg.id << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Generated message ID: " << msg.id;
 
         // Store message in history
         {
             std::lock_guard<std::mutex> lock(chatServer.messagesMutex);
             chatServer.messages[msg.id] = msg;
-            if (App::g_runDebug) {
-                std::cout << "💾Message stored in history" << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(debug) << "Message stored in history";
         }
 
-        if (!msg.mentions.empty() && App::g_runDebug) {
-            std::cout << "👥Mentions found: ";
+        //TODO: do something when mentions is found
+        if (!msg.mentions.empty()) {
+            BOOST_LOG_TRIVIAL(debug) << "Mentions found: ";
+
             for (const auto& mention : msg.mentions) {
-                std::cout << "@" << mention << " ";
+                BOOST_LOG_TRIVIAL(debug) << "@" << mention << " ";
             }
-            std::cout << std::endl;
         }
 
         // Broadcast to all users
@@ -183,25 +172,21 @@ namespace App {
             {"timestamp", msg.timestamp}
         };
 
-        if (App::g_runDebug) {
-            std::cout << "📢Broadcasting message to all users" << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Broadcasting message to all users";
         BroadcastMessage("system", broadcastMsg.dump());
 
         // send notifications to mentioned users
-        if (!msg.mentions.empty() && App::g_runDebug) {
-            std::cout << "🔔Sending notifications to mentioned users" << std::endl;
+        if (!msg.mentions.empty()) {
+            BOOST_LOG_TRIVIAL(debug) << "Sending notifications to mentioned users";
+            NotifyMentionedUsers(msg);
         }
-        NotifyMentionedUsers(msg);
     }
 
     void ChatServerHandler::HandleDirectMessage(const std::string& sender, const nlohmann::json& msgData) {
         std::string recipient = msgData["recipient"];
         std::string content = msgData["content"];
 
-        if (App::g_runDebug) {
-            std::cout << "📩 Sending direct message from" << sender << " to " << recipient << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Sending direct message from" << sender << " to " << recipient;
 
         nlohmann::json dmMsg = {
             {"type", "direct_message"},
@@ -215,14 +200,13 @@ namespace App {
                 auto& client = it->second;
                 client.GetWebSocket()->text(true);
                 client.GetWebSocket()->write(net::buffer(dmMsg.dump()));
-                if (App::g_runDebug) {
-                    std::cout << "✅ Direct message sent to " << recipient << std::endl;
-                }
+                BOOST_LOG_TRIVIAL(debug) << "Direct message sent to " << recipient;
+
             } catch (const std::exception& e) {
-                std::cerr << "❌ Error sending DM to " << recipient << ": " << e.what() << std::endl;
+                BOOST_LOG_TRIVIAL(error) << "Error sending DM to " << recipient << ": " << e.what();
             }
         } else if (App::g_runDebug) {
-            std::cout << "⚠️ Recipient" << recipient << " not found or offline" << std::endl;
+            BOOST_LOG_TRIVIAL(info) << "Recipient" << recipient << " not found or offline";
         }
     }
 
@@ -230,17 +214,13 @@ namespace App {
         std::string msgId = msgData["id"];
         std::string newContent = msgData["content"];
 
-        if (App::g_runDebug) {
-            std::cout << "📝Editing message " << msgId << " from " << sender << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Editing message " << msgId << " from " << sender;
 
         std::lock_guard<std::mutex> lock(chatServer.messagesMutex);
         auto& msg = chatServer.messages[msgId];
 
         if (msg.sender != sender) {
-            if (App::g_runDebug) {
-                std::cout << "⛔Edit rejected: User " << sender << " is not the original sender " << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(debug) << "Edit rejected: User " << sender << " is not the original sender";
             return;
         }
 
@@ -248,9 +228,7 @@ namespace App {
         msg.mentions = ExtractMentions(msgData);
         msg.isEdited = true;
 
-        if (App::g_runDebug) {
-            std::cout << "✅ Message edited successfully" << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Message edited successfully";
 
         nlohmann::json editMsg = {
             {"type", "message_edit"},
@@ -259,30 +237,24 @@ namespace App {
             {"mentions", msg.mentions}
         };
 
-        if (App::g_runDebug) {
-            std::cout << "📢 Broadcasting edit to all users" << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Broadcasting edit to all users";
         BroadcastMessage("system", editMsg.dump());
 
-        if (!msg.mentions.empty() && App::g_runDebug) {
-            std::cout << "🔔 Sending notifications for new mentions" << std::endl;
+        if (!msg.mentions.empty()) {
+            BOOST_LOG_TRIVIAL(debug) << "Sending notifications for new mentions";
+            NotifyMentionedUsers(msg);
         }
-        NotifyMentionedUsers(msg);
     }
 
     void ChatServerHandler::HandleDeleteMessage(const std::string& sender, const nlohmann::json& msgData) {
         std::string msgId = msgData["id"];
-        if (App::g_runDebug) {
-            std::cout << "🗑️Deleting message " << msgId << " from " << sender << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Deleting message " << msgId << " from " << sender;
 
         std::lock_guard<std::mutex> lock(chatServer.messagesMutex);
         auto& msg = chatServer.messages[msgId];
 
         if (msg.sender != sender) {
-            if (App::g_runDebug) {
-                std::cout << "⛔ Delete rejected: User " << sender << " is not the original sender" << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(warning) << "Delete rejected: User " << sender << " is not the original sender";
             return;
         }
 
@@ -290,18 +262,13 @@ namespace App {
         msg.content = "[Message deleted]";
         msg.mentions.clear();
 
-        if (App::g_runDebug) {
-            std::cout << "✅ Message deleted successfully" << std::endl;
-        }
-
+        BOOST_LOG_TRIVIAL(debug) << "Message deleted successfully";
         nlohmann::json deleteMsg = {
             {"type", "message_delete"},
             {"id", msg.id}
         };
 
-        if (App::g_runDebug) {
-            std::cout << "📢 Broadcasting deletion to all users" << std::endl;
-        }
+        BOOST_LOG_TRIVIAL(debug) << "Broadcasting deletion to all users";
         BroadcastMessage("system", deleteMsg.dump());
     }
 
@@ -316,23 +283,20 @@ namespace App {
         };
 
         for (const auto& mention : msg.mentions) {
-            if (App::g_runDebug) {
-                std::cout << "🔔 Attempting to notify user: " << mention << std::endl;
-            }
+            BOOST_LOG_TRIVIAL(debug) << "Attempting to notify user: " << mention;
 
             if (auto it = chatServer.clients.find(mention); it != chatServer.clients.end()) {
                 try {
                     auto& client = it->second;
                     client.GetWebSocket()->text(true);
                     client.GetWebSocket()->write(net::buffer(notification.dump()));
-                    if (App::g_runDebug) {
-                        std::cout << "✅ Notification sent to " << mention << std::endl;
-                    }
+                    BOOST_LOG_TRIVIAL(debug) << "Notification sent to " << mention;
                 } catch (const std::exception& e) {
-                    std::cerr << "❌ Error sending notification to " << mention << ": " << e.what() << std::endl;
+                    BOOST_LOG_TRIVIAL(error) << "Error sending notification to " << mention << ": " << e.what();
                 }
-            } else if (App::g_runDebug) {
-                std::cout << "⚠️ Mentioned user " << mention << " not found or offline" << std::endl;
+            } else {
+                //TODO: do someting when mentioned users not found or offline
+                BOOST_LOG_TRIVIAL(debug) << "Mentioned user " << mention << " not found or offline";
             }
         }
     }
@@ -351,6 +315,4 @@ namespace App {
         }
         return mentions;
     }
-
-
 }

@@ -17,7 +17,6 @@ namespace App {
     };
 
     ProgramOptions ParseCommandLine(int argc, char* argv[]);
-    void CheckForRootUser();
 
 } // namespace App
 
