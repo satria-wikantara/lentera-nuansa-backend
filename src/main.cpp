@@ -8,12 +8,17 @@
 #include "../include/program_options.h"
 
 int main(int argc, char *argv[]) {
-     App::CheckForRootUser();
+     App::ProgramOptions options = App::ParseCommandLine(argc, argv);
+
+     bool runCheckList = App::CheckForRootUser() && App::InitializeConfig(options.configFile);
+     if (!runCheckList) {
+          return 1;
+     }
+
+     // Initialize logging
      App::InitializeLogging();
 
-     App::ProgramOptions options = App::ParseCommandLine(argc, argv);
-     App::g_runDebug = options.runDebug;
-
+     // Run the application
      App::Run(options);
 
      return 0;

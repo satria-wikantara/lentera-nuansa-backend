@@ -34,7 +34,16 @@ add_executable(${PROJECT_NAME} ${SOURCES}
         include/global_config.h
         src/global_config.cpp
         include/init.h
-        src/init.cpp)
+        src/init.cpp
+)
+
+# Custom command to copy config.yml to the build directory based on the build configuration
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/config.yml
+        $<IF:$<CONFIG:Debug>,${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG},${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>/config.yml
+)
 
 # Optionally, you can add include directories if needed
 # target_include_directories(${PROJECT_NAME} PRIVATE include)
@@ -49,12 +58,27 @@ find_package(Boost REQUIRED COMPONENTS
         log_setup
 )
 
+# Add yaml-cpp
+find_package(yaml-cpp REQUIRED)
+if(NOT yaml-cpp_FOUND)
+    message(FATAL_ERROR "yaml-cpp not found")
+endif()
+
 # Link Boost Libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(${PROJECT_NAME} PRIVATE
     Boost::program_options
     Boost::log
     Boost::log_setup
+    yaml-cpp::yaml-cpp
 )
+
+
+
+# If using Homebrew on MacOS, you might need to add this
+if(APPLE)
+    include_directories(/usr/local/include)
+    link_directories(/usr/local/lib)
+endif()
 
 # On Unix-like systems, we need to link against pthread
 if(UNIX)
@@ -64,6 +88,8 @@ endif()
 
 # Custom command to create the build directory if it doesn't exist
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+
+
 
 # Add a custom command to run the program after building
 add_custom_target(run

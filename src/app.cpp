@@ -4,21 +4,18 @@
 
 #include <iostream>
 #include <thread>
+#include <yaml-cpp/yaml.h>
 
 #include "../include/app.h"
 #include "../include/chat_server.h"
 #include "../include/chat_server_handler.h"
 #include "../include/program_options.h"
+#include "../include/global_config.h"
 
 namespace App {
 
     void Run(const ProgramOptions& options) {
         if (options.command == "run") {
-            if (options.configFile.empty()) {
-                std::cerr << "Non configuration file provided." << std::endl;
-                return;
-            }
-
             try {
                 net::io_context ioc;
                 tcp::acceptor acceptor(ioc, {{}, 9090});

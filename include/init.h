@@ -6,7 +6,8 @@
 #define INIT_H
 
 namespace App {
-    void CheckForRootUser();
+    bool InitializeConfig(const std::string& configPath);
+    bool CheckForRootUser();
     void InitializeLogging();
 }
 

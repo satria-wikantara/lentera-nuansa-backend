@@ -1,6 +1,15 @@
 ## Dependencies
 - Boost
 - nlohmann/json
+### yaml-cpp
+#### macOS
+```bash
+brew install yaml-cpp
+```
+#### Ubuntu
+```bash
+sudo apt-get install libyaml-cpp-dev
+```
 
 ## Build
 

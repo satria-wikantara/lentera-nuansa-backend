@@ -13,7 +13,6 @@ namespace App {
       bool verbose{false};
       std::string command;
       std::string configFile;
-        bool runDebug{false};
     };
 
     ProgramOptions ParseCommandLine(int argc, char* argv[]);

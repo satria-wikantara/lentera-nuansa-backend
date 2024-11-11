@@ -11,11 +11,39 @@
 #include "../include/global_config.h"
 #include "../include/init.h"
 
+#include <yaml-cpp/yaml.h>
+#include <yaml-cpp/exceptions.h>
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/parse.h>
+
 namespace App {
-    void CheckForRootUser() {
+
+    bool InitializeConfig(const std::string &configPath) {
+        if (configPath.empty()) {
+            std::cerr << "No configuration file provided." << std::endl;
+            return false;
+        }
+
+        try {
+            YAML::Node config = YAML::LoadFile(configPath);
+
+            // Set global debug flag
+            g_runDebug = config["debug"].as<bool>(false);
+        } catch(const YAML::Exception& e) {
+            throw std::runtime_error("Failed to load config file: " + std::string(e.what()));
+        }
+
+        return true;
+    }
+
+
+    bool CheckForRootUser() {
         if (getuid() == 0) {
             std::cerr << "Warning: running as root is not recommended. Please use a non-root user." << std::endl;
+            return false;
         }
+
+        return true;
     }
 
     void InitializeLogging() {
