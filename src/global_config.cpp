@@ -4,5 +4,7 @@
 #include "../include/global_config.h"
 
 namespace App {
+
     bool g_runDebug = false; // Default to false
+    ServerConfig g_serverConfig;
 }

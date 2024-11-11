@@ -18,9 +18,10 @@ namespace App {
         if (options.command == "run") {
             try {
                 net::io_context ioc;
-                tcp::acceptor acceptor(ioc, {{}, 9090});
+                auto const address = net::ip::make_address(g_serverConfig.host);
+                tcp::acceptor acceptor(ioc, {{address}, g_serverConfig.port});
 
-                std::cout << "Websocket server running on port 9090..." << std::endl;
+                std::cout << "Websocket server running on port " << g_serverConfig.port << "..." << std::endl;
 
                 while (true) {
                     tcp::socket socket{ioc};

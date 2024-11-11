@@ -29,6 +29,13 @@ namespace App {
 
             // Set global debug flag
             g_runDebug = config["debug"].as<bool>(false);
+
+            // Load server configuration
+            if (config["server"]) {
+                g_serverConfig.host = config["server"]["host"].as<std::string>("0.0.0.0");
+                g_serverConfig.port = config["server"]["port"].as<unsigned short>(9090);
+            }
+
         } catch(const YAML::Exception& e) {
             throw std::runtime_error("Failed to load config file: " + std::string(e.what()));
         }
