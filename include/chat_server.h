@@ -25,6 +25,15 @@ namespace App {
             return it != messages.end() ? &it->second : nullptr;
         }
 
+        void SetMessage(const Message& msg) {
+            std::lock_guard<std::mutex> lock(messagesMutex);
+            messages[msg.id] = msg;
+        }
+
+        const MessageMap& GetMessages() const {
+            return messages;
+        }
+
     private:
         ClientMap clients;
         MessageMap messages;

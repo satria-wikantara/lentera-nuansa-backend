@@ -17,29 +17,30 @@ using tcp = boost::asio::ip::tcp;
 namespace App {
     class ChatServerHandler {
     public:
-        static ChatServer& GetInstance();
+        explicit ChatServerHandler(std::shared_ptr<ChatServer> server);
 
-        static void BroadcastMessage(const std::string& sender, const std::string& msgData);
+        ChatServer& GetInstance();
 
-        static void HandleMessage(const std::string& sender, const nlohmann::json& msgData);
+        void BroadcastMessage(const std::string& sender, const std::string& msgData);
 
-        static void HandleNewMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleMessage(const std::string& sender, const nlohmann::json& msgData);
 
-        static void HandleEditMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleNewMessage(const std::string& sender, const nlohmann::json& msgData);
 
-        static void HandleDeleteMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleEditMessage(const std::string& sender, const nlohmann::json& msgData);
 
-        static void HandleDirectMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleDeleteMessage(const std::string& sender, const nlohmann::json& msgData);
 
-        static void NotifyMentionedUsers(const Message& msg);
+        void HandleDirectMessage(const std::string& sender, const nlohmann::json& msgData);
 
-        static std::vector<std::string> ExtractMentions(const std::string& content);
+        void NotifyMentionedUsers(const Message& msg);
 
-        static void HandleWebSocketSession(std::shared_ptr<websocket::stream<tcp::socket>> ws);
+        std::vector<std::string> ExtractMentions(const std::string& content);
+
+        void HandleWebSocketSession(std::shared_ptr<websocket::stream<tcp::socket>> ws);
 
     private:
-        static ChatServer chatServer;
-        ChatServerHandler() = delete; // Prevent instantiation
+        std::shared_ptr<ChatServer> chatServer;
     };
 }
 

@@ -67,3 +67,8 @@ For direct messages:
     "content": "Hello user2!"
 }
 ```
+
+## Testing
+```bash
+./bin/Debug/kudeta_local_tests --gtest_color=yes
+```

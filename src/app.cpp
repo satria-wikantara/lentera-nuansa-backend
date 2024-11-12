@@ -23,6 +23,9 @@ namespace App {
 
                 std::cout << "Websocket server running on port " << g_serverConfig.port << "..." << std::endl;
 
+                auto chatServer = std::make_shared<App::ChatServer>();
+                App::ChatServerHandler handler(chatServer);
+
                 while (true) {
                     tcp::socket socket{ioc};
                     acceptor.accept(socket);
@@ -30,10 +33,9 @@ namespace App {
                     std::shared_ptr<websocket::stream<tcp::socket>> ws =
                         std::make_shared<websocket::stream<tcp::socket>>(std::move(socket));
 
-                    std::thread{[ws]() mutable {
-                        ChatServerHandler::HandleWebSocketSession(ws);
+                    std::thread {[&handler, ws]() mutable {
+                        handler.HandleWebSocketSession(ws);
                     }}.detach();
-
                 }
             } catch (const std::exception& e) {
                 std::cerr << "Server error: " << e.what() << std::endl;
