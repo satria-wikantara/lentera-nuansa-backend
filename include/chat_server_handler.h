@@ -19,25 +19,25 @@ namespace App {
     public:
         explicit ChatServerHandler(std::shared_ptr<ChatServer> server);
 
-        ChatServer& GetInstance();
+        ChatServer &GetInstance();
 
-        void BroadcastMessage(const std::string& sender, const std::string& msgData);
+        void BroadcastMessage(const std::string &sender, const std::string &msgData);
 
-        void HandleMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleMessage(const std::string &sender, const nlohmann::json &msgData);
 
-        void HandleNewMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleNewMessage(const std::string &sender, const nlohmann::json &msgData);
 
-        void HandleEditMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleEditMessage(const std::string &sender, const nlohmann::json &msgData);
 
-        void HandleDeleteMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleDeleteMessage(const std::string &sender, const nlohmann::json &msgData);
 
-        void HandleDirectMessage(const std::string& sender, const nlohmann::json& msgData);
+        void HandleDirectMessage(const std::string &sender, const nlohmann::json &msgData);
 
-        void NotifyMentionedUsers(const Message& msg);
+        void NotifyMentionedUsers(const Message &msg);
 
-        std::vector<std::string> ExtractMentions(const std::string& content);
+        std::vector<std::string> ExtractMentions(const std::string &content);
 
-        void HandleWebSocketSession(std::shared_ptr<websocket::stream<tcp::socket>> ws);
+        void HandleWebSocketSession(std::shared_ptr<websocket::stream<tcp::socket> > ws);
 
     private:
         std::shared_ptr<ChatServer> chatServer;

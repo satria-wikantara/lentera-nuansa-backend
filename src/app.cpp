@@ -13,8 +13,7 @@
 #include "../include/global_config.h"
 
 namespace App {
-
-    void Run(const ProgramOptions& options) {
+    void Run(const ProgramOptions &options) {
         if (options.command == "run") {
             try {
                 net::io_context ioc;
@@ -30,14 +29,16 @@ namespace App {
                     tcp::socket socket{ioc};
                     acceptor.accept(socket);
 
-                    std::shared_ptr<websocket::stream<tcp::socket>> ws =
-                        std::make_shared<websocket::stream<tcp::socket>>(std::move(socket));
+                    std::shared_ptr<websocket::stream<tcp::socket> > ws =
+                            std::make_shared<websocket::stream<tcp::socket> >(std::move(socket));
 
-                    std::thread {[&handler, ws]() mutable {
-                        handler.HandleWebSocketSession(ws);
-                    }}.detach();
+                    std::thread{
+                        [&handler, ws]() mutable {
+                            handler.HandleWebSocketSession(ws);
+                        }
+                    }.detach();
                 }
-            } catch (const std::exception& e) {
+            } catch (const std::exception &e) {
                 std::cerr << "Server error: " << e.what() << std::endl;
             }
 

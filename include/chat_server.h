@@ -5,43 +5,40 @@
 #ifndef CHAT_SERVER_H
 #define CHAT_SERVER_H
 
-#include <string>
 #include <map>
+#include <string>
+
 #include "chat_types.h"
 
 namespace App {
+	class ChatServer {
+	public:
+		using ClientMap = std::map<std::string, ChatClient>;
+		using MessageMap = std::map<std::string, Message>;
 
-    class ChatServer {
+		static ChatServer &GetInstance();
 
-    public:
-        using ClientMap = std::map<std::string, ChatClient>;
-        using MessageMap = std::map<std::string, Message>;
+		[[nodiscard]] const Message *GetMessage(const std::string &msgId) const {
+			std::lock_guard<std::mutex> lock(messagesMutex);
+			auto it = messages.find(msgId);
+			return it != messages.end() ? &it->second : nullptr;
+		}
 
-        static ChatServer& GetInstance();
+		void SetMessage(const Message &msg) {
+			std::lock_guard<std::mutex> lock(messagesMutex);
+			messages[msg.id] = msg;
+		}
 
-        [[nodiscard]] const Message* GetMessage(const std::string& msgId) const {
-            std::lock_guard<std::mutex> lock(messagesMutex);
-            auto it = messages.find(msgId);
-            return it != messages.end() ? &it->second : nullptr;
-        }
+		const MessageMap &GetMessages() const { return messages; }
 
-        void SetMessage(const Message& msg) {
-            std::lock_guard<std::mutex> lock(messagesMutex);
-            messages[msg.id] = msg;
-        }
+	private:
+		ClientMap clients;
+		MessageMap messages;
+		mutable std::mutex clientsMutex;
+		mutable std::mutex messagesMutex;
 
-        const MessageMap& GetMessages() const {
-            return messages;
-        }
+		friend class ChatServerHandler;
+	};
+} // namespace App
 
-    private:
-        ClientMap clients;
-        MessageMap messages;
-        mutable std::mutex clientsMutex;
-        mutable std::mutex messagesMutex;
-
-        friend class ChatServerHandler;
-    };
-}
-
-#endif //CHAT_SERVER_H
+#endif  // CHAT_SERVER_H

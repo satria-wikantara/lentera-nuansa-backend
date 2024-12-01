@@ -5,9 +5,11 @@
 #ifndef INIT_H
 #define INIT_H
 
-namespace App {
-    bool InitializeConfig(const std::string& configPath);
+namespace nuansa::test {
+    bool InitializeConfig(const std::string &configPath);
+
     bool CheckForRootUser();
+
     void InitializeLogging();
 }
 
