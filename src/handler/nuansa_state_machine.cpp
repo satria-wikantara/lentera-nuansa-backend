@@ -1,16 +1,14 @@
 //
 // Created by I Gede Panca Sutresna on 05/12/24.
 //
+#include <utility>
+
 #include "nuansa/pch/pch.h"
 
 #include "nuansa/handler/websocket_client.h"
 #include "nuansa/handler/websocket_handler.h"
-
 #include "nuansa/handler/websocket_state_machine.h"
 #include "nuansa/services/auth/auth_service.h"
-#include "nuansa/services/user/user_service.h"
-#include "nuansa/plugin/plugin_manager.h"
-
 #include "nuansa/messages/message_types.h"
 
 using namespace nuansa::messages;
@@ -19,9 +17,9 @@ namespace nuansa::handler {
     WebSocketStateMachine::WebSocketStateMachine(
         std::shared_ptr<WebSocketClient> client,
         std::shared_ptr<WebSocketServer> server)
-        : client(client),
-          websocketServer(server),
-          state(ClientState::Initial) {
+        : client(std::move(client)),
+          state(ClientState::Initial),
+          websocketServer(std::move(server)) {
     }
 
     void WebSocketStateMachine::ProcessMessage(const nlohmann::json &msgData) {
@@ -62,9 +60,8 @@ namespace nuansa::handler {
     }
 
     void WebSocketStateMachine::HandleAuthMessage(const nlohmann::json &msgData) {
-        auto type = msgData["header"]["messageType"].get<nuansa::messages::MessageType>();
-
-        if (type == nuansa::messages::MessageType::Register) {
+        if (auto type = msgData["header"]["messageType"].get<nuansa::messages::MessageType>();
+            type == nuansa::messages::MessageType::Register) {
             HandleRegistration(msgData);
             TransitionTo(ClientState::AwaitingAuth);
         } else if (type == nuansa::messages::MessageType::Login) {
@@ -99,7 +96,7 @@ namespace nuansa::handler {
 
             // Get auth service instance and register
             auto &authService = nuansa::services::auth::AuthService::GetInstance();
-            auto registrationResponse = authService.Register(registrationRequest);
+            auto [success, token, message] = authService.Register(registrationRequest);
 
             // Prepare response JSON with similar structure
             nlohmann::json response = {
@@ -114,14 +111,14 @@ namespace nuansa::handler {
                 },
                 {
                     "payload", {
-                        {"success", registrationResponse.success},
-                        {"message", registrationResponse.message},
-                        {"token", registrationResponse.token} // Include token if registration successful
+                        {"success", success},
+                        {"message", message},
+                        {"token", token} // Include token if registration successful
                     }
                 }
             };
 
-            if (registrationResponse.success) {
+            if (success) {
                 BOOST_LOG_TRIVIAL(info) << "User registered successfully: " << username;
             } else {
                 BOOST_LOG_TRIVIAL(warning) << "Registration failed for user: " << username;
@@ -164,25 +161,25 @@ namespace nuansa::handler {
 
             // Get auth service instance and authenticate
             auto &authService = nuansa::services::auth::AuthService::GetInstance();
-            auto authResponse = authService.Authenticate(authRequest);
+            auto [success, token, message] = authService.Authenticate(authRequest);
 
             // Prepare response JSON
             nlohmann::json response = {
                 {"type", nuansa::messages::MessageType::Login},
-                {"success", authResponse.success},
-                {"message", authResponse.message}
+                {"success", success},
+                {"message", message}
             };
 
-            if (authResponse.success) {
+            if (success) {
                 BOOST_LOG_TRIVIAL(info) << "User authenticated successfully: " << username;
 
                 // Update client state
                 client->username = username;
-                client->authToken = authResponse.token;
+                client->authToken = token;
                 client->authStatus = nuansa::messages::AuthStatus::Authenticated;
 
                 // Add token to response
-                response["token"] = authResponse.token;
+                response["token"] = token;
 
                 // Send success response
                 SendMessage(response.dump());
