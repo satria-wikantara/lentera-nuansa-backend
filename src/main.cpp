@@ -1,25 +1,16 @@
-//
-// Created by panca on 11/6/24.
-//
-
-#include "../include/app.h"
-#include "../include/init.h"
-#include "../include/global_config.h"
-#include "../include/program_options.h"
+#include <iostream>
+#include "nuansa/utils/program_options.h"
+#include "nuansa/core/app.h"
 
 int main(int argc, char *argv[]) {
-     App::ProgramOptions options = App::ParseCommandLine(argc, argv);
+     nuansa::utils::ProgramOptions options(argc, argv);
 
-     bool runCheckList = App::CheckForRootUser() && App::InitializeConfig(options.configFile);
-     if (!runCheckList) {
+     if (!options.Parse() || !options.Validate()) {
           return 1;
      }
 
-     // Initialize logging
-     App::InitializeLogging();
-
      // Run the application
-     App::Run(options);
+     nuansa::core::Run(options);
 
      return 0;
 }

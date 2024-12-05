@@ -1,4 +1,18 @@
-debug: true
 server:
   host: "0.0.0.0"
   port: 9090
+  log_level: debug
+  log_path: "logs/kudeta.log"
+database:
+  host: "${DB_HOST}"
+  port: "${DB_PORT}"
+  name: "${DB_NAME}"
+  user: "${DB_USER}"
+  # Use environment variable for password
+  password: "${DB_PASSWORD}"
+  pool_size: 20
+circuit_breaker:
+  failure_threshold: 5
+  success_threshold: 2
+  reset_timeout_seconds: 60
+  timeout_seconds: 2

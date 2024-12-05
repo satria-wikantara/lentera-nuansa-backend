@@ -84,8 +84,20 @@ find_package(GTest REQUIRED)
 # 5. Main Library Target
 ################################################################################
 add_library(${PROJECT_NAME}_lib STATIC ${SOURCES}
-        include/nuansa/core/app.h
-        include/nuansa/database/db_connection_pool.h)
+        include/nuansa/handler/websocket_client.h
+        include/nuansa/handler/websocket_server.h
+        include/nuansa/services/auth/auth_service.h
+        include/nuansa/services/user/iuser_service.h
+        include/nuansa/services/user/user_service.h
+        include/nuansa/plugin/iplugin.h
+        include/nuansa/plugin/plugin_manager.h
+        include/nuansa/services/user/iuser_service.h
+        include/nuansa/services/user/user_service.h
+        include/nuansa/handler/websocket_client.h
+        include/nuansa/handler/websocket_handler.h
+        include/nuansa/handler/websocket_server.h
+        include/nuansa/handler/websocket_state_machine.h
+        include/nuansa/handler/websocket_state_machine.h)
 target_include_directories(${PROJECT_NAME}_lib
         PUBLIC ${CMAKE_SOURCE_DIR}/include
         PRIVATE
@@ -132,7 +144,9 @@ add_executable(${PROJECT_NAME} ${SOURCE_DIR}/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib Threads::Threads)
 
 # Test Executables
-add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
+add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES}
+        tests/main.cpp
+        tests/utils/db_test.h.cpp)
 add_executable(user_service_test tests/unit/services/user/user_service_test.cpp)
 add_executable(websocket_handler_test tests/unit/handlers/websocket_handler_test.cpp)
 

@@ -5,11 +5,9 @@
 #ifndef NUANSA_UTILS_ERRORS_CIRCUIT_BREAKER_ERROR_H
 #define NUANSA_UTILS_ERRORS_CIRCUIT_BREAKER_ERROR_H
 
-#include <string>
-
 #include "nuansa/pch/pch.h"
 
-namespace nuansa::utils::error {
+namespace nuansa::utils::errors {
 	class CircuitBreakerError : public std::runtime_error {
 		using std::runtime_error::runtime_error;
 	};

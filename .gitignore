@@ -31,11 +31,13 @@
 *.out
 *.app
 
-# Project folders
-/.idea
 /bin
 /build
+/.vscode
+/.idea
+.cursorrules
 
-# Environment Files
 .env
+*.env
+!.env.example
 .DS_Store

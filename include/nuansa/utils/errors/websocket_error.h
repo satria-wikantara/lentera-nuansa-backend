@@ -9,7 +9,7 @@
 
 #include "nuansa/pch/pch.h"
 
-namespace nuansa::utils::error {
+namespace nuansa::utils::errors {
 	class WebSocketError : public std::runtime_error {
 		using std::runtime_error::runtime_error;
 	};
