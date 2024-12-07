@@ -105,7 +105,13 @@ add_library(${PROJECT_NAME}_lib STATIC ${SOURCES}
         include/nuansa/utils/exception/circuit_breaker_exception.h
         include/nuansa/utils/exception/database_exception.h
         include/nuansa/utils/pattern/circuit_breaker.h
-        include/nuansa/utils/validation.h)
+        include/nuansa/utils/validation.h
+        include/nuansa/services/auth/auth_status.h
+        include/nuansa/services/auth/auth_message.h
+        include/nuansa/messages/base_message.h
+        include/nuansa/utils/exception/message_exception.h
+        include/nuansa/services/auth/register_message.h
+        include/nuansa/services/chat/chat_message.h)
 target_include_directories(${PROJECT_NAME}_lib
         PUBLIC ${CMAKE_SOURCE_DIR}/include
         PRIVATE

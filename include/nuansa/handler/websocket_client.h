@@ -3,6 +3,7 @@
 
 #include "nuansa/utils/pch.h"
 #include "nuansa/messages/message_types.h"
+#include "nuansa/services/auth/auth_status.h"
 
 namespace nuansa::handler {
 	enum class ClientState {
@@ -14,27 +15,27 @@ namespace nuansa::handler {
 
 	class WebSocketClient {
 	public:
-		WebSocketClient(const std::string &id, const std::shared_ptr<websocket::stream<tcp::socket> > &ws)
-			: authStatus(), ws(ws), clientId(id), state() {
+		WebSocketClient(std::string id, const std::shared_ptr<websocket::stream<tcp::socket> > &ws)
+			: authStatus(), ws(ws), clientId(std::move(id)), state() {
 			// Initialize any other members here
 		}
 
 		// Getters and setters
-		std::shared_ptr<websocket::stream<tcp::socket> > GetWebSocket() const { return ws; }
+		[[nodiscard]] std::shared_ptr<websocket::stream<tcp::socket> > GetWebSocket() const { return ws; }
 		void SetState(const ClientState newState) { state = newState; }
-		ClientState GetState() const { return state; }
+		[[nodiscard]] ClientState GetState() const { return state; }
 
-		bool IsAuthenticated() const {
-			return authStatus == nuansa::messages::AuthStatus::Authenticated;
+		[[nodiscard]] bool IsAuthenticated() const {
+			return authStatus == nuansa::services::auth::AuthStatus::Authenticated;
 		}
 
-		void SetAuthStatus(const nuansa::messages::AuthStatus status) { authStatus = status; }
+		void SetAuthStatus(const nuansa::services::auth::AuthStatus status) { authStatus = status; }
 		void SetAuthToken(const std::string &token) { authToken = token; }
 
 		// Public members (could be made private with getters/setters)
 		std::string username;
 		std::optional<std::string> authToken;
-		nuansa::messages::AuthStatus authStatus;
+		nuansa::services::auth::AuthStatus authStatus;
 
 	private:
 		std::shared_ptr<websocket::stream<tcp::socket> > ws;

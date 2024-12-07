@@ -7,6 +7,8 @@
 #include "nuansa/messages/message_types.h"
 #include "nuansa/services/user/user_service.h"
 #include "nuansa/utils/validation.h"
+#include "nuansa/services/auth/auth_message.h"
+#include "nuansa/services/auth/register_message.h"
 
 namespace nuansa::services::auth {
     AuthService &AuthService::GetInstance() {
@@ -21,26 +23,26 @@ namespace nuansa::services::auth {
         userCredentials["bob"] = crypt("password456", "$6$random_salt");
     }
 
-    nuansa::messages::AuthResponse AuthService::Authenticate(const nuansa::messages::AuthRequest &request) {
+    nuansa::services::auth::AuthResponse AuthService::Authenticate(const nuansa::services::auth::AuthRequest &request) {
         std::lock_guard<std::mutex> lock(authMutex);
 
         // Delegate authentication to UserService
         if (auto &userService = nuansa::services::user::UserService::GetInstance(); !userService.AuthenticateUser(
-            request.username, request.password)) {
-            return nuansa::messages::AuthResponse{false, "", "Invalid credentials"};
+            request.GetUsername(), request.GetPassword())) {
+            return nuansa::services::auth::AuthResponse{false, "", "Invalid credentials"};
         }
 
         // Generate new token
-        const std::string token = GenerateToken(request.username);
+        const std::string token = GenerateToken(request.GetUsername());
 
         // Store token info
         const TokenInfo tokenInfo{
-            request.username,
+            request.GetUsername(),
             std::chrono::system_clock::now() + std::chrono::hours(24)
         };
         activeTokens[token] = tokenInfo;
 
-        return nuansa::messages::AuthResponse{true, token, "Authentication successful"};
+        return nuansa::services::auth::AuthResponse{true, token, "Authentication successful"};
     }
 
     bool AuthService::ValidateToken(const std::string &token) {
@@ -94,46 +96,49 @@ namespace nuansa::services::auth {
         }
     }
 
-    nuansa::messages::AuthResponse AuthService::Register(const nuansa::messages::RegisterRequest &request) {
+    nuansa::services::auth::AuthResponse AuthService::Register(const nuansa::services::auth::RegisterRequest &request) {
         std::lock_guard<std::mutex> lock(authMutex);
 
         // Validate username
-        if (!nuansa::utils::Validation::ValidateUsername(request.username)) {
-            LOG_WARNING << "Invalid username format: " << request.username;
-            return nuansa::messages::AuthResponse{false, "", "Invalid username format"};
+        if (!nuansa::utils::Validation::ValidateUsername(request.GetUsername())) {
+            LOG_WARNING << "Invalid username format: " << request.GetUsername();
+            return nuansa::services::auth::AuthResponse{false, "", "Invalid username format"};
         }
 
         // Validate email
-        if (!nuansa::utils::Validation::ValidateEmail(request.email)) {
-            LOG_WARNING << "Invalid email format: " << request.email;
-            return nuansa::messages::AuthResponse{false, "", "Invalid email format"};
+        if (!nuansa::utils::Validation::ValidateEmail(request.GetEmail())) {
+            LOG_WARNING << "Invalid email format: " << request.GetEmail();
+            return nuansa::services::auth::AuthResponse{false, "", "Invalid email format"};
         }
 
         // Validate password
-        if (!nuansa::utils::Validation::ValidatePassword(request.password)) {
+        if (!nuansa::utils::Validation::ValidatePassword(request.GetPassword())) {
             LOG_WARNING << "Invalid password format";
-            return nuansa::messages::AuthResponse{false, "", "Invalid password format"};
+            return nuansa::services::auth::AuthResponse{false, "", "Invalid password format"};
         }
 
         // Delegate registration to UserService
         auto &userService = nuansa::services::user::UserService::GetInstance();
 
         const std::string salt = nuansa::models::User::GenerateSalt();
-        if (const std::string hashedPassword = nuansa::utils::crypto::CryptoUtil::HashPassword(request.password, salt);
-            !userService.CreateUser(nuansa::models::User{request.username, request.email, hashedPassword, salt})) {
-            return nuansa::messages::AuthResponse{false, "", "Registration failed"};
+        if (const std::string hashedPassword = nuansa::utils::crypto::CryptoUtil::HashPassword(
+                request.GetPassword(), salt);
+            !userService.CreateUser(nuansa::models::User{
+                request.GetUsername(), request.GetEmail(), hashedPassword, salt
+            })) {
+            return nuansa::services::auth::AuthResponse{false, "", "Registration failed"};
         }
 
         // Generate new token for the newly registered user
-        const std::string token = GenerateToken(request.username);
+        const std::string token = GenerateToken(request.GetUsername());
 
         // Store token info
         const TokenInfo tokenInfo{
-            request.username,
+            request.GetUsername(),
             std::chrono::system_clock::now() + std::chrono::hours(24)
         };
         activeTokens[token] = tokenInfo;
 
-        return nuansa::messages::AuthResponse{true, token, "Registration successful"};
+        return nuansa::services::auth::AuthResponse{true, token, "Registration successful"};
     }
 }

@@ -8,6 +8,7 @@
 #include "nuansa/handler/websocket_client.h"
 #include "nuansa/handler/websocket_state_machine.h"
 #include "nuansa/services/auth/auth_service.h"
+#include "nuansa/services/auth/register_message.h"
 #include "nuansa/messages/message_types.h"
 
 using namespace nuansa::messages;
@@ -28,8 +29,8 @@ namespace nuansa::handler {
             LOG_DEBUG << "Message Type: " << type;
 
             // Handle authentication separately
-            if (type == ToString(MessageType::Login) ||
-                type == ToString(MessageType::Register)) {
+            if (type == MessageTypeToString(MessageType::Login) ||
+                type == MessageTypeToString(MessageType::Register)) {
                 HandleAuthMessage(msgData);
                 return;
             }
@@ -90,7 +91,7 @@ namespace nuansa::handler {
             LOG_DEBUG << "Processing registration request for user: " << username;
 
             // Create registration request
-            nuansa::messages::RegisterRequest registrationRequest{
+            nuansa::services::auth::RegisterRequest registrationRequest{
                 messageHeader,
                 username,
                 email,
@@ -161,7 +162,7 @@ namespace nuansa::handler {
             LOG_DEBUG << "Processing login request for user: " << username;
 
             // Create auth request
-            nuansa::messages::AuthRequest authRequest{
+            nuansa::services::auth::AuthRequest authRequest{
                 username,
                 password
             };
@@ -183,7 +184,7 @@ namespace nuansa::handler {
                 // Update client state
                 client->username = username;
                 client->authToken = token;
-                client->authStatus = nuansa::messages::AuthStatus::Authenticated;
+                client->authStatus = nuansa::services::auth::AuthStatus::Authenticated;
 
                 // Add token to response
                 response["token"] = token;
@@ -195,7 +196,7 @@ namespace nuansa::handler {
                 LOG_WARNING << "Authentication failed for user: " << username;
 
                 // Update client state
-                client->authStatus = nuansa::messages::AuthStatus::NotAuthenticated;
+                client->authStatus = nuansa::services::auth::AuthStatus::NotAuthenticated;
                 client->authToken = std::nullopt;
 
                 // Send failure response

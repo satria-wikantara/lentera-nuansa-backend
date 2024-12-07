@@ -3,7 +3,8 @@
 
 #include "nuansa/utils/pch.h"
 
-#include "nuansa/messages/message_types.h"
+#include "nuansa/services/auth/auth_message.h"
+#include "nuansa/services/auth/register_message.h"
 
 namespace nuansa::services::auth {
 	class AuthService {
@@ -12,7 +13,7 @@ namespace nuansa::services::auth {
 
 		static AuthService &GetInstance();
 
-		nuansa::messages::AuthResponse Authenticate(const nuansa::messages::AuthRequest &request);
+		nuansa::services::auth::AuthResponse Authenticate(const nuansa::services::auth::AuthRequest &request);
 
 		bool ValidateToken(const std::string &token);
 
@@ -20,7 +21,7 @@ namespace nuansa::services::auth {
 
 		std::optional<std::string> GetUsernameFromToken(const std::string &token);
 
-		nuansa::messages::AuthResponse Register(const nuansa::messages::RegisterRequest &request);
+		nuansa::services::auth::AuthResponse Register(const nuansa::services::auth::RegisterRequest &request);
 
 	private:
 		static std::string GenerateToken(const std::string &username);
