@@ -11,7 +11,6 @@
 #include "nuansa/utils/validation/validation.h"
 
 namespace nuansa::services::user {
-
     UserService &UserService::GetInstance() {
         static UserService instance;
         return instance;
@@ -20,7 +19,7 @@ namespace nuansa::services::user {
     void UserService::Initialize() {
         try {
             if (!nuansa::database::ConnectionPool::GetInstance().IsInitialized()) {
-                BOOST_LOG_TRIVIAL(warning) << "Connection pool not initialized during UserService initialization";
+                LOG_WARNING << "Connection pool not initialized during UserService initialization";
                 return;
             }
 
@@ -30,10 +29,10 @@ namespace nuansa::services::user {
 
             if (conn) {
                 fallbackConnection_ = std::move(conn);
-                BOOST_LOG_TRIVIAL(info) << "UserService initialized with fallback connection";
+                LOG_INFO << "UserService initialized with fallback connection";
             }
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(warning) << "Failed to acquire fallback connection: " << e.what();
+            LOG_WARNING << "Failed to acquire fallback connection: " << e.what();
             // Don't throw, continue with null fallback connection
         }
 
@@ -45,7 +44,7 @@ namespace nuansa::services::user {
         try {
             return nuansa::database::ConnectionPool::GetInstance().AcquireConnection().get();
         } catch (const std::exception &) {
-            if (fallbackConnection_ &&fallbackConnection_->is_open()
+            if (fallbackConnection_ && fallbackConnection_->is_open()
             ) {
                 return const_cast<pqxx::connection *>(&(*fallbackConnection_));
             }
@@ -77,7 +76,7 @@ namespace nuansa::services::user {
                 ));
             });
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error retrieving user by username: " << e.what();
+            LOG_ERROR << "Error retrieving user by username: " << e.what();
             return std::nullopt;
         }
     }
@@ -103,7 +102,7 @@ namespace nuansa::services::user {
                 result[0]["salt"].as<std::string>()
             );
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error retrieving user by email: " << e.what();
+            LOG_ERROR << "Error retrieving user by email: " << e.what();
             return std::nullopt;
         }
     }
@@ -120,7 +119,7 @@ namespace nuansa::services::user {
 
             return !result.empty();
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error checking email: " << e.what();
+            LOG_ERROR << "Error checking email: " << e.what();
             return false;
         }
     }
@@ -137,7 +136,7 @@ namespace nuansa::services::user {
 
             return !result.empty();
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error checking username: " << e.what();
+            LOG_ERROR << "Error checking username: " << e.what();
             return false;
         }
     }
@@ -190,7 +189,7 @@ namespace nuansa::services::user {
 
     bool UserService::CreateUser(const nuansa::models::User &user) {
         if (circuitBreaker_.IsOpen()) {
-            BOOST_LOG_TRIVIAL(warning) << "Circuit breaker is open, registration rejected";
+            LOG_WARNING << "Circuit breaker is open, registration rejected";
             return false;
         }
 
@@ -205,7 +204,7 @@ namespace nuansa::services::user {
 
 
             if (!nuansa::database::ConnectionPool::GetInstance().IsInitialized()) {
-                BOOST_LOG_TRIVIAL(error) << "Connection pool not initialized";
+                LOG_ERROR << "Connection pool not initialized";
                 return false;
             }
 
@@ -214,7 +213,7 @@ namespace nuansa::services::user {
             );
 
             if (!conn) {
-                BOOST_LOG_TRIVIAL(error) << "Failed to acquire connection for user creation";
+                LOG_ERROR << "Failed to acquire connection for user creation";
                 return false;
             }
 
@@ -232,7 +231,7 @@ namespace nuansa::services::user {
             return true;
         } catch (const std::exception &e) {
             circuitBreaker_.RecordFailure();
-            BOOST_LOG_TRIVIAL(error) << "Database error during user creation: " << e.what();
+            LOG_ERROR << "Database error during user creation: " << e.what();
             return false;
         }
     }
@@ -251,7 +250,7 @@ namespace nuansa::services::user {
             // Compare the hashed password with the stored hash
             return hashedPassword == user->GetPasswordHash();
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error authenticating user: " << e.what();
+            LOG_ERROR << "Error authenticating user: " << e.what();
             return false;
         }
     }
@@ -259,7 +258,7 @@ namespace nuansa::services::user {
     bool UserService::UpdateUserEmail(const std::string &username, const std::string &newEmail) {
         try {
             if (!nuansa::utils::validation::ValidateEmail(newEmail)) {
-                BOOST_LOG_TRIVIAL(error) << "Invalid email format";
+                LOG_ERROR << "Invalid email format";
                 return false;
             }
 
@@ -278,11 +277,11 @@ namespace nuansa::services::user {
                 }
 
                 txn.commit();
-                BOOST_LOG_TRIVIAL(info) << "Email updated for user: " << username;
+                LOG_INFO << "Email updated for user: " << username;
                 return true;
             });
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error updating user email: " << e.what();
+            LOG_ERROR << "Error updating user email: " << e.what();
             return false;
         }
     }
@@ -291,7 +290,7 @@ namespace nuansa::services::user {
         try {
             // Validate new password
             if (!nuansa::utils::validation::ValidatePassword(newPassword)) {
-                BOOST_LOG_TRIVIAL(warning) << "Invalid password format";
+                LOG_WARNING << "Invalid password format";
                 return false;
             }
 
@@ -316,11 +315,11 @@ namespace nuansa::services::user {
                 }
 
                 txn.commit();
-                BOOST_LOG_TRIVIAL(info) << "Password updated for user: " << username;
+                LOG_INFO << "Password updated for user: " << username;
                 return true;
             });
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error updating user password: " << e.what();
+            LOG_ERROR << "Error updating user password: " << e.what();
             return false;
         }
     }
@@ -342,11 +341,11 @@ namespace nuansa::services::user {
                 }
 
                 txn.commit();
-                BOOST_LOG_TRIVIAL(info) << "User deleted: " << username;
+                LOG_INFO << "User deleted: " << username;
                 return true;
             });
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error deleting user: " << e.what();
+            LOG_ERROR << "Error deleting user: " << e.what();
             return false;
         }
     }

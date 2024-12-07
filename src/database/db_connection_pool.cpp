@@ -30,30 +30,30 @@ namespace nuansa::database {
         });
         circuitBreaker_.Reset();
 
-        BOOST_LOG_TRIVIAL(info) << "Initializing connection pool with size " << poolSize_;
+        LOG_INFO << "Initializing connection pool with size " << poolSize_;
 
         bool initializationFailed = false;
         std::string errorMessage;
 
         // Try to create at least one connection
         try {
-            BOOST_LOG_TRIVIAL(info) << "Creating initial connection";
+            LOG_INFO << "Creating initial connection";
             auto conn = CreateConnection();
             if (conn) {
-                BOOST_LOG_TRIVIAL(info) << "Pushing initial connection to pool";
+                LOG_INFO << "Pushing initial connection to pool";
                 connections_.push(std::move(conn));
                 activeConnections_++;
             }
-            BOOST_LOG_TRIVIAL(info) << "Initial connection created";
+            LOG_INFO << "Initial connection created";
         } catch (const std::exception &e) {
             initializationFailed = true;
             errorMessage = e.what();
-            BOOST_LOG_TRIVIAL(error) << "Failed to create initial connection: " << errorMessage;
+            LOG_ERROR << "Failed to create initial connection: " << errorMessage;
         }
 
         // If we couldn't create even one connection, throw an exception
         if (initializationFailed || connections_.empty()) {
-            BOOST_LOG_TRIVIAL(error) << "Shutting down connection pool due to initialization failure";
+            LOG_ERROR << "Shutting down connection pool due to initialization failure";
             Shutdown();
             throw nuansa::utils::errors::DatabaseCreateConnectionError(
                 "Failed to initialize connection pool: " + errorMessage
@@ -69,21 +69,21 @@ namespace nuansa::database {
                     activeConnections_++;
                 }
             } catch (const std::exception &e) {
-                BOOST_LOG_TRIVIAL(warning) << "Failed to create additional connection: " << e.what();
+                LOG_WARNING << "Failed to create additional connection: " << e.what();
                 break; // Stop trying to create more connections
             }
         }
 
         initialized_ = true;
-        BOOST_LOG_TRIVIAL(info) << "Connection pool initialized with " << connections_.size() << " connections";
+        LOG_INFO << "Connection pool initialized with " << connections_.size() << " connections";
     }
 
     std::shared_ptr<pqxx::connection> ConnectionPool::CreateConnection() {
         try {
-            BOOST_LOG_TRIVIAL(info) << "Creating connection with connection string: " << connectionString_;
+            LOG_INFO << "Creating connection with connection string: " << connectionString_;
             return std::make_shared<pqxx::connection>(connectionString_);
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Unexpected error creating database connection: " << e.what();
+            LOG_ERROR << "Unexpected error creating database connection: " << e.what();
             throw nuansa::utils::errors::DatabaseCreateConnectionError(e.what());
         }
     }
@@ -100,31 +100,31 @@ namespace nuansa::database {
 
     void ConnectionPool::Shutdown() {
         std::unique_lock<std::mutex> lock(mutex_);
-        BOOST_LOG_TRIVIAL(info) << "Shutting down connection pool";
+        LOG_INFO << "Shutting down connection pool";
         // First mark as not initialized to prevent new connection requests
         initialized_ = false;
-        BOOST_LOG_TRIVIAL(info) << "Connection pool marked as not initialized";
+        LOG_INFO << "Connection pool marked as not initialized";
         // Wake up any waiting threads before clearing connections
         connectionAvailable_.notify_all();
-        BOOST_LOG_TRIVIAL(info) << "Notified all waiting threads";
+        LOG_INFO << "Notified all waiting threads";
 
         // Give waiting threads a chance to wake up and exit
         lock.unlock();
-        BOOST_LOG_TRIVIAL(info) << "Unlocked mutex";
+        LOG_INFO << "Unlocked mutex";
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         lock.lock();
-        BOOST_LOG_TRIVIAL(info) << "Locked mutex";
+        LOG_INFO << "Locked mutex";
 
         // Clear all connections
         while (!connections_.empty()) {
-            BOOST_LOG_TRIVIAL(info) << "Clearing connections";
+            LOG_INFO << "Clearing connections";
             auto conn = std::move(connections_.front());
             connections_.pop();
             try {
-                BOOST_LOG_TRIVIAL(info) << "Resetting connection";
+                LOG_INFO << "Resetting connection";
                 conn.reset();
             } catch (const std::exception &e) {
-                BOOST_LOG_TRIVIAL(warning) << "Error closing connection during shutdown: " << e.what();
+                LOG_WARNING << "Error closing connection during shutdown: " << e.what();
             }
         }
 
@@ -133,7 +133,7 @@ namespace nuansa::database {
         // Final notification for any remaining waiters
         connectionAvailable_.notify_all();
 
-        BOOST_LOG_TRIVIAL(info) << "Connection pool shut down";
+        LOG_INFO << "Connection pool shut down";
     }
 
     bool ConnectionPool::IsInitialized() const {
@@ -150,12 +150,12 @@ namespace nuansa::database {
                     return CreateConnection();
                 } catch (const std::exception &e) {
                     if (attempt == config.maxRetries || !IsTransientError(e)) {
-                        BOOST_LOG_TRIVIAL(error) << "Failed to create connection after "
+                        LOG_ERROR << "Failed to create connection after "
                                            << attempt << " attempts: " << e.what();
                         throw;
                     }
 
-                    BOOST_LOG_TRIVIAL(warning) << "Connection attempt " << attempt
+                    LOG_WARNING << "Connection attempt " << attempt
                                          << " failed: " << e.what()
                                          << ". Retrying in " << delay.count() << "ms";
 
@@ -176,11 +176,11 @@ namespace nuansa::database {
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (!initialized_) {
-            BOOST_LOG_TRIVIAL(error) << "Cannot acquire connection: pool is not initialized";
+            LOG_ERROR << "Cannot acquire connection: pool is not initialized";
             throw std::runtime_error("Connection pool is not initialized");
         }
 
-        BOOST_LOG_TRIVIAL(info) << "Acquiring connection from pool";
+        LOG_INFO << "Acquiring connection from pool";
 
         // Wait for a connection with timeout
         auto waitResult = connectionAvailable_.wait_for(lock, timeout, [this] {
@@ -192,7 +192,7 @@ namespace nuansa::database {
         }
 
         if (!waitResult) {
-            BOOST_LOG_TRIVIAL(error) << "Timeout waiting for available connection";
+            LOG_ERROR << "Timeout waiting for available connection";
             throw std::runtime_error("Timeout waiting for database connection");
         }
 
@@ -203,11 +203,11 @@ namespace nuansa::database {
             connections_.pop();
         } else if (activeConnections_ < maxPoolSize_) {
             try {
-                BOOST_LOG_TRIVIAL(warning) << "Creating new connection";
+                LOG_WARNING << "Creating new connection";
                 conn = CreateConnection();
                 activeConnections_++;
             } catch (const std::exception &e) {
-                BOOST_LOG_TRIVIAL(error) << "Failed to create new connection: " << e.what();
+                LOG_ERROR << "Failed to create new connection: " << e.what();
                 // Notify other waiting threads that a connection attempt failed
                 connectionAvailable_.notify_one();
                 throw;
@@ -224,11 +224,11 @@ namespace nuansa::database {
     }
 
     std::shared_ptr<pqxx::connection> ConnectionPool::GetFallbackConnection() {
-        BOOST_LOG_TRIVIAL(info) << "Getting fallback connection";
+        LOG_INFO << "Getting fallback connection";
         try {
             // First try to use a dedicated read-only replica if configured
             if (!fallbackConnectionString_.empty()) {
-                BOOST_LOG_TRIVIAL(info) << "Using dedicated fallback connection string";
+                LOG_INFO << "Using dedicated fallback connection string";
                 return std::make_shared<pqxx::connection>(fallbackConnectionString_);
             }
 
@@ -243,13 +243,13 @@ namespace nuansa::database {
                 fallbackConfig = connectionString_ + "?connect_timeout=10";
             }
 
-            BOOST_LOG_TRIVIAL(info) << "Creating new fallback connection";
+            LOG_INFO << "Creating new fallback connection";
             auto conn = std::make_shared<pqxx::connection>(fallbackConfig);
             conn->set_client_encoding("UTF8");
 
             return conn;
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Failed to create fallback connection: " << e.what();
+            LOG_ERROR << "Failed to create fallback connection: " << e.what();
             throw nuansa::utils::errors::DatabaseCreateConnectionError(
                 "No fallback connection available: " + std::string(e.what())
             );
@@ -278,15 +278,15 @@ namespace nuansa::database {
 
                 connections_.push(std::move(conn));
                 connectionAvailable_.notify_one();
-                BOOST_LOG_TRIVIAL(debug) << "Connection returned to pool. Pool size: " << connections_.size();
+                LOG_DEBUG << "Connection returned to pool. Pool size: " << connections_.size();
             } else {
                 activeConnections_--;
-                BOOST_LOG_TRIVIAL(warning) << "Discarding dead connection";
+                LOG_WARNING << "Discarding dead connection";
                 connectionAvailable_.notify_one();
             }
         } catch (const std::exception &e) {
             activeConnections_--;
-            BOOST_LOG_TRIVIAL(error) << "Error returning connection: " << e.what();
+            LOG_ERROR << "Error returning connection: " << e.what();
             connectionAvailable_.notify_one();
         }
     }

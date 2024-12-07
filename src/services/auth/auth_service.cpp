@@ -100,19 +100,19 @@ namespace nuansa::services::auth {
 
         // Validate username
         if (!nuansa::utils::validation::ValidateUsername(request.username)) {
-            BOOST_LOG_TRIVIAL(warning) << "Invalid username format: " << request.username;
+            LOG_WARNING << "Invalid username format: " << request.username;
             return nuansa::messages::AuthResponse{false, "", "Invalid username format"};
         }
 
         // Validate email
         if (!nuansa::utils::validation::ValidateEmail(request.email)) {
-            BOOST_LOG_TRIVIAL(warning) << "Invalid email format: " << request.email;
+            LOG_WARNING << "Invalid email format: " << request.email;
             return nuansa::messages::AuthResponse{false, "", "Invalid email format"};
         }
 
         // Validate password
         if (!nuansa::utils::validation::ValidatePassword(request.password)) {
-            BOOST_LOG_TRIVIAL(warning) << "Invalid password format";
+            LOG_WARNING << "Invalid password format";
             return nuansa::messages::AuthResponse{false, "", "Invalid password format"};
         }
 

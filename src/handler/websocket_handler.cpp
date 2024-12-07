@@ -17,79 +17,79 @@ namespace nuansa::handler {
     void WebSocketHandler::HandleSession(std::shared_ptr<websocket::stream<tcp::socket> > ws) {
         std::shared_ptr<WebSocketClient> client;
         try {
-            BOOST_LOG_TRIVIAL(debug) << "Starting new WebSocket session";
+            LOG_DEBUG << "Starting new WebSocket session";
 
             // Set timeout options
-            BOOST_LOG_TRIVIAL(debug) << "Setting timeout options";
+            LOG_DEBUG << "Setting timeout options";
             ws->set_option(websocket::stream_base::timeout::suggested(
                 beast::role_type::server));
 
             // Set a decorator to handle the WebSocket handshake
-            BOOST_LOG_TRIVIAL(debug) << "Setting WebSocket decorator";
+            LOG_DEBUG << "Setting WebSocket decorator";
             ws->set_option(websocket::stream_base::decorator(
                 [](websocket::response_type &res) {
                     res.set(http::field::server, "Kudeta WebSocket Server");
                     res.set(http::field::access_control_allow_origin, "*");
                 }));
 
-            BOOST_LOG_TRIVIAL(debug) << "Generating client UUID";
+            LOG_DEBUG << "Generating client UUID";
             boost::uuids::random_generator generator;
             boost::uuids::uuid uuid = generator();
             std::string clientId = boost::uuids::to_string(uuid);
-            BOOST_LOG_TRIVIAL(debug) << "Generated client ID: " << clientId;
+            LOG_DEBUG << "Generated client ID: " << clientId;
 
-            BOOST_LOG_TRIVIAL(debug) << "Creating WebSocket client and state machine";
+            LOG_DEBUG << "Creating WebSocket client and state machine";
             client = std::make_shared<WebSocketClient>(clientId, ws);
             auto stateMachine = std::make_shared<WebSocketStateMachine>(client, websocketServer);
 
             beast::flat_buffer buffer;
-            BOOST_LOG_TRIVIAL(debug) << "Entering message processing loop";
+            LOG_DEBUG << "Entering message processing loop";
             while (stateMachine->GetCurrentState() != ClientState::Disconnected) {
                 boost::system::error_code ec;
                 buffer.consume(buffer.size());
 
-                BOOST_LOG_TRIVIAL(debug) << "Waiting for next message";
+                LOG_DEBUG << "Waiting for next message";
                 // Add timeout for read operations
                 ws->read(buffer, ec);
 
                 if (ec) {
                     if (ec != websocket::error::closed) {
-                        BOOST_LOG_TRIVIAL(error) << "Read error: " << ec.message();
+                        LOG_ERROR << "Read error: " << ec.message();
                     }
-                    BOOST_LOG_TRIVIAL(debug) << "Breaking message loop due to error: " << ec.message();
+                    LOG_DEBUG << "Breaking message loop due to error: " << ec.message();
                     break;
                 }
 
                 std::string message = beast::buffers_to_string(buffer.data());
-                BOOST_LOG_TRIVIAL(debug) << "Received message: " << message;
+                LOG_DEBUG << "Received message: " << message;
 
                 try {
-                    BOOST_LOG_TRIVIAL(debug) << "Parsing message JSON";
+                    LOG_DEBUG << "Parsing message JSON";
                     nlohmann::json msgData = nlohmann::json::parse(message);
-                    BOOST_LOG_TRIVIAL(debug) << "Processing message through state machine";
+                    LOG_DEBUG << "Processing message through state machine";
                     stateMachine->ProcessMessage(msgData);
                 } catch (const nlohmann::json::exception &e) {
-                    BOOST_LOG_TRIVIAL(error) << "JSON parsing error: " << e.what();
-                    BOOST_LOG_TRIVIAL(debug) << "Sending error message to client";
+                    LOG_ERROR << "JSON parsing error: " << e.what();
+                    LOG_DEBUG << "Sending error message to client";
                     SendErrorMessage(client, "Invalid message format");
                 }
             }
 
             // Perform clean shutdown
-            BOOST_LOG_TRIVIAL(debug) << "Performing clean WebSocket shutdown";
+            LOG_DEBUG << "Performing clean WebSocket shutdown";
             ws->close(websocket::close_code::normal);
         } catch (const beast::system_error &se) {
             if (se.code() != websocket::error::closed) {
-                BOOST_LOG_TRIVIAL(error) << "WebSocket error: " << se.code().message();
+                LOG_ERROR << "WebSocket error: " << se.code().message();
             }
-            BOOST_LOG_TRIVIAL(debug) << "Caught beast::system_error: " << se.what();
+            LOG_DEBUG << "Caught beast::system_error: " << se.what();
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Session error: " << e.what();
-            BOOST_LOG_TRIVIAL(debug) << "Caught std::exception: " << e.what();
+            LOG_ERROR << "Session error: " << e.what();
+            LOG_DEBUG << "Caught std::exception: " << e.what();
         }
         // Ensure client cleanup happens
         if (client) {
-            BOOST_LOG_TRIVIAL(debug) << "Cleaning up client connection";
+            LOG_DEBUG << "Cleaning up client connection";
             HandleClientDisconnection(client);
         }
     }
@@ -97,7 +97,7 @@ namespace nuansa::handler {
     void WebSocketHandler::SendMessage(std::shared_ptr<WebSocketClient> client,
                                        const std::string &message) {
         if (!client || !client->GetWebSocket()) {
-            BOOST_LOG_TRIVIAL(error) << "Invalid client";
+            LOG_ERROR << "Invalid client";
             return;
         }
 
@@ -106,7 +106,7 @@ namespace nuansa::handler {
             ws->text(true);
             ws->write(net::buffer(message));
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error sending message: " << e.what();
+            LOG_ERROR << "Error sending message: " << e.what();
         }
     }
 
@@ -129,7 +129,7 @@ namespace nuansa::handler {
         if (it != websocketServer->clients.end()) {
             websocketServer->clients.erase(it);
 
-            BOOST_LOG_TRIVIAL(info) << "Client disconnected: " << client->username;
+            LOG_INFO << "Client disconnected: " << client->username;
 
             // Broadcast disconnection message
             nlohmann::json disconnectMsg = {
@@ -156,10 +156,10 @@ namespace nuansa::handler {
                 if (ws) {
                     ws->text(true);
                     ws->write(net::buffer(msgStr));
-                    BOOST_LOG_TRIVIAL(debug) << "Broadcast message sent to " << username;
+                    LOG_DEBUG << "Broadcast message sent to " << username;
                 }
             } catch (const std::exception &e) {
-                BOOST_LOG_TRIVIAL(error) << "Error broadcasting to " << username << ": " << e.what();
+                LOG_ERROR << "Error broadcasting to " << username << ": " << e.what();
             }
         }
     }
@@ -173,7 +173,7 @@ namespace nuansa::handler {
         };
 
         for (const auto &mention: msg.mentions) {
-            BOOST_LOG_TRIVIAL(debug) << "Attempting to notify user: " << mention;
+            LOG_DEBUG << "Attempting to notify user: " << mention;
 
             if (auto it = websocketServer->clients.find(mention);
                 it != websocketServer->clients.end()) {
@@ -183,14 +183,14 @@ namespace nuansa::handler {
                     if (ws) {
                         ws->text(true);
                         ws->write(net::buffer(notification.dump()));
-                        BOOST_LOG_TRIVIAL(debug) << "Notification sent to " << mention;
+                        LOG_DEBUG << "Notification sent to " << mention;
                     }
                 } catch (const std::exception &e) {
-                    BOOST_LOG_TRIVIAL(error) << "Error sending notification to "
+                    LOG_ERROR << "Error sending notification to "
                                            << mention << ": " << e.what();
                 }
             } else {
-                BOOST_LOG_TRIVIAL(debug) << "Mentioned user " << mention
+                LOG_DEBUG << "Mentioned user " << mention
                                        << " not found or offline";
             }
         }

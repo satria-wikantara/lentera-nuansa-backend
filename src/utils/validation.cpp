@@ -51,10 +51,10 @@ bool nuansa::utils::validation::ValidatePassword(const std::string &password) {
 		else hasSpecial = true;
 	}
 
-	BOOST_LOG_TRIVIAL(debug) << "Password complexity: " << (hasUpper ? "upper" : "") << (hasLower ? "lower" : "") << (
-		                        hasDigit ? "digit" : "") << (hasSpecial ? "special" : "");
+	LOG_DEBUG << "Password complexity: " << (hasUpper ? "upper" : "") << (hasLower ? "lower" : "") << (
+		         hasDigit ? "digit" : "") << (hasSpecial ? "special" : "");
 	std::string hashedPassword = nuansa::utils::crypto::HashPassword(password, "");
-	BOOST_LOG_TRIVIAL(debug) << "Hashed password: " << hashedPassword;
+	LOG_DEBUG << "Hashed password: " << hashedPassword;
 
 	return hasUpper && hasLower && hasDigit && hasSpecial;
 }

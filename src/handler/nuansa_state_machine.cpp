@@ -26,7 +26,7 @@ namespace nuansa::handler {
         try {
             auto type = msgData["header"]["messageType"].get<std::string>();
 
-            BOOST_LOG_TRIVIAL(debug) << "Message Type: " << type;
+            LOG_DEBUG << "Message Type: " << type;
 
             // Handle authentication separately
             if (type == ToString(MessageType::Login) ||
@@ -50,16 +50,17 @@ namespace nuansa::handler {
                     break;
 
                 default:
-                    BOOST_LOG_TRIVIAL(warning) << "Invalid state";
+                    LOG_WARNING << "Invalid state";
                     break;
             }
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error processing message: " << e.what();
+            LOG_ERROR << "Error processing message: " << e.what();
             SendErrorMessage("Error processing message");
         }
     }
 
     void WebSocketStateMachine::HandleAuthMessage(const nlohmann::json &msgData) {
+        LOG_DEBUG << "WebSocketStateMachine::HandleAuthMessage";
         if (const auto type = msgData["header"]["messageType"].get<nuansa::messages::MessageType>();
             type == nuansa::messages::MessageType::Register) {
             HandleRegistration(msgData);
@@ -76,15 +77,18 @@ namespace nuansa::handler {
 
     void WebSocketStateMachine::HandleRegistration(const nlohmann::json &msgData) const {
         try {
+            LOG_DEBUG << "Getting message header";
             // Extract header from the nested structure
             auto messageHeader = nuansa::messages::MessageHeader::FromJson(msgData["header"]);
+
+            LOG_DEBUG << "Done Getting message header";
 
             // Extract data from the nested structure
             auto username = msgData["payload"]["username"].get<std::string>();
             auto email = msgData["payload"]["email"].get<std::string>();
             auto password = msgData["payload"]["password"].get<std::string>();
 
-            BOOST_LOG_TRIVIAL(debug) << "Processing registration request for user: " << username;
+            LOG_DEBUG << "Processing registration request for user: " << username;
 
             // Create registration request
             nuansa::messages::RegisterRequest registrationRequest{
@@ -119,13 +123,13 @@ namespace nuansa::handler {
             };
 
             if (success) {
-                BOOST_LOG_TRIVIAL(info) << "User registered successfully: " << username;
+                LOG_INFO << "User registered successfully: " << username;
             } else {
-                BOOST_LOG_TRIVIAL(warning) << "Registration failed for user: " << username;
+                LOG_WARNING << "Registration failed for user: " << username;
             }
             SendMessage(response.dump());
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error during registration: " << e.what();
+            LOG_ERROR << "Error during registration: " << e.what();
 
             nlohmann::json errorResponse = {
                 {
@@ -155,7 +159,7 @@ namespace nuansa::handler {
             auto username = msgData["username"].get<std::string>();
             auto password = msgData["password"].get<std::string>();
 
-            BOOST_LOG_TRIVIAL(debug) << "Processing login request for user: " << username;
+            LOG_DEBUG << "Processing login request for user: " << username;
 
             // Create auth request
             nuansa::messages::AuthRequest authRequest{
@@ -175,7 +179,7 @@ namespace nuansa::handler {
             };
 
             if (success) {
-                BOOST_LOG_TRIVIAL(info) << "User authenticated successfully: " << username;
+                LOG_INFO << "User authenticated successfully: " << username;
 
                 // Update client state
                 client->username = username;
@@ -189,7 +193,7 @@ namespace nuansa::handler {
                 SendMessage(response.dump());
                 return true;
             } else {
-                BOOST_LOG_TRIVIAL(warning) << "Authentication failed for user: " << username;
+                LOG_WARNING << "Authentication failed for user: " << username;
 
                 // Update client state
                 client->authStatus = nuansa::messages::AuthStatus::NotAuthenticated;
@@ -200,7 +204,7 @@ namespace nuansa::handler {
                 return false;
             }
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error during login: " << e.what();
+            LOG_ERROR << "Error during login: " << e.what();
 
             // Send error response
             nlohmann::json errorResponse = {
@@ -216,7 +220,7 @@ namespace nuansa::handler {
     // Helper method to send messages
     void WebSocketStateMachine::SendMessage(const std::string &msgData) const {
         if (!client || !client->GetWebSocket()) {
-            BOOST_LOG_TRIVIAL(error) << "Cannot send message - invalid client or websocket";
+            LOG_ERROR << "Cannot send message - invalid client or websocket";
             return;
         }
 
@@ -225,7 +229,7 @@ namespace nuansa::handler {
             ws->text(true);
             ws->write(net::buffer(msgData));
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error sending message: " << e.what();
+            LOG_ERROR << "Error sending message: " << e.what();
         }
     }
 
@@ -262,13 +266,13 @@ namespace nuansa::handler {
                 break;
 
             default:
-                BOOST_LOG_TRIVIAL(warning) << "Unhandled message type";
+                LOG_WARNING << "Unhandled message type";
                 break;
         }
     }
 
     void WebSocketStateMachine::TransitionTo(ClientState newState) {
-        BOOST_LOG_TRIVIAL(debug) << "State transition: "
+        LOG_DEBUG << "State transition: "
                             << static_cast<int>(state)
                             << " -> "
                             << static_cast<int>(newState);

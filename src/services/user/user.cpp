@@ -78,7 +78,7 @@ namespace nuansa::models {
                 "postgresql://panca:panca@localhost:5432/nuansa_test"
             );
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Database connection error: " << e.what();
+            LOG_ERROR << "Database connection error: " << e.what();
             throw;
         }
     }
@@ -113,7 +113,7 @@ namespace nuansa::models {
             }
             return std::nullopt;
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Failed to find user by username: " << e.what();
+            LOG_ERROR << "Failed to find user by username: " << e.what();
             return std::nullopt;
         }
     }

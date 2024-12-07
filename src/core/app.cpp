@@ -84,36 +84,36 @@ namespace nuansa::core {
     }
 
     void Run(const utils::ProgramOptions &options) {
-        BOOST_LOG_TRIVIAL(debug) << "Starting Run() with command: " << options.GetCommand();
+        LOG_DEBUG << "Starting Run() with command: " << options.GetCommand();
 
         // If any of the checks fail, return an error
         if (!nuansa::core::Initialize(options.GetConfigFilePath().string())) {
-            BOOST_LOG_TRIVIAL(error) << "Failed to initialize core components";
+            LOG_ERROR << "Failed to initialize core components";
             return;
         }
 
         if (options.GetCommand() == "run") {
             try {
-                BOOST_LOG_TRIVIAL(debug) << "Initializing io_context";
+                LOG_DEBUG << "Initializing io_context";
                 net::io_context ioc;
                 auto &serverConfig = nuansa::config::GetConfig().GetServerConfig();
 
                 auto const address = net::ip::make_address(serverConfig.host);
                 tcp::acceptor acceptor(ioc, {{address}, serverConfig.port});
 
-                BOOST_LOG_TRIVIAL(info) << "WebSocket server running on port " << serverConfig.port;
+                LOG_INFO << "WebSocket server running on port " << serverConfig.port;
 
                 auto websocketServer = std::make_shared<nuansa::handler::WebSocketServer>();
                 auto handler = std::make_shared<nuansa::handler::WebSocketHandler>(websocketServer);
 
                 // Start accepting connections asynchronously
                 auto DoAccept = [&acceptor, &ioc, handler](auto &&self) -> void {
-                    BOOST_LOG_TRIVIAL(debug) << "Starting async accept";
+                    LOG_DEBUG << "Starting async accept";
                     acceptor.async_accept(
                         [handler, &acceptor, self=std::forward<decltype(self)>(self)]
                 (boost::system::error_code ec, tcp::socket socket) {
                             if (!ec) {
-                                BOOST_LOG_TRIVIAL(debug) << "New connection accepted";
+                                LOG_DEBUG << "New connection accepted";
                                 // Create WebSocket stream
                                 auto ws = std::make_shared<websocket::stream<tcp::socket> >(std::move(socket));
 
@@ -121,7 +121,7 @@ namespace nuansa::core {
                                 ws->async_accept(
                                     [handler, ws](boost::system::error_code ec) {
                                         if (!ec) {
-                                            BOOST_LOG_TRIVIAL(debug) << "WebSocket handshake successful";
+                                            LOG_DEBUG << "WebSocket handshake successful";
                                             // Set suggested timeout options
                                             ws->set_option(websocket::stream_base::timeout::suggested(
                                                 beast::role_type::server));
@@ -136,19 +136,19 @@ namespace nuansa::core {
                                             // Start the session in a separate thread to avoid blocking
                                             std::thread([handler, ws]() {
                                                 try {
-                                                    BOOST_LOG_TRIVIAL(debug) << "Starting new session handler thread";
+                                                    LOG_DEBUG << "Starting new session handler thread";
                                                     handler->HandleSession(ws);
                                                 } catch (const std::exception &e) {
-                                                    BOOST_LOG_TRIVIAL(error) << "Session handling error: " << e.what();
+                                                    LOG_ERROR << "Session handling error: " << e.what();
                                                 }
                                                 // Let the WebSocket close naturally through RAII
                                             }).detach();
                                         } else {
-                                            BOOST_LOG_TRIVIAL(error) << "WebSocket accept error: " << ec.message();
+                                            LOG_ERROR << "WebSocket accept error: " << ec.message();
                                         }
                                     });
                             } else {
-                                BOOST_LOG_TRIVIAL(error)
+                                LOG_ERROR
                                     << "Accept error: " << ec.message();
                             }
 
@@ -158,7 +158,7 @@ namespace nuansa::core {
                 };
 
                 // Start the accept loop (recursive lambda)
-                BOOST_LOG_TRIVIAL(debug) << "Starting accept loop";
+                LOG_DEBUG << "Starting accept loop";
                 DoAccept(DoAccept);
 
                 // Run the io_context
@@ -166,31 +166,31 @@ namespace nuansa::core {
                 auto thread_count = std::thread::hardware_concurrency();
                 threads.reserve(thread_count);
 
-                BOOST_LOG_TRIVIAL(debug) << "Creating " << thread_count << " IO threads";
+                LOG_DEBUG << "Creating " << thread_count << " IO threads";
                 // Create a pool of threads to run the io_context
                 for (auto i = 0u; i < thread_count; ++i) {
                     threads.emplace_back([&ioc] {
                         try {
-                            BOOST_LOG_TRIVIAL(debug) << "IO thread " << std::this_thread::get_id() << " starting";
+                            LOG_DEBUG << "IO thread " << std::this_thread::get_id() << " starting";
                             ioc.run();
                         } catch (const std::exception &e) {
-                            BOOST_LOG_TRIVIAL(error)
+                            LOG_ERROR
                                 << "IO context error: " << e.what();
                         }
                     });
                 }
 
                 // Wait for all threads to complete
-                BOOST_LOG_TRIVIAL(debug) << "Waiting for IO threads to complete";
+                LOG_DEBUG << "Waiting for IO threads to complete";
                 for (auto &thread: threads) {
                     thread.join();
                 }
             } catch (const std::exception &e) {
-                BOOST_LOG_TRIVIAL(error) << "Server error: " << e.what();
+                LOG_ERROR << "Server error: " << e.what();
             }
             return;
         }
 
-        BOOST_LOG_TRIVIAL(error) << "No valid command provided.";
+        LOG_ERROR << "No valid command provided.";
     }
 }

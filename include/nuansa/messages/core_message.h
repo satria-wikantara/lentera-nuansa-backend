@@ -5,7 +5,7 @@
 #ifndef NUANSA_MESSAGES_CORE_MESSAGE_H
 #define NUANSA_MESSAGES_CORE_MESSAGE_H
 
-#include "kudeta/pch/pch.h"
+#include "nuansa/pch/pch.h"
 
 namespace nuansa::messages {
 	struct BaseMessage {

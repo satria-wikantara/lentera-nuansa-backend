@@ -33,9 +33,9 @@ namespace nuansa::config {
             LoadDatabaseConfig(config_);
 
 
-            BOOST_LOG_TRIVIAL(info) << "Database configuration loaded successfully";
+            LOG_INFO << "Database configuration loaded successfully";
         } catch (const std::exception &e) {
-            BOOST_LOG_TRIVIAL(error) << "Error loading configuration: " << e.what();
+            LOG_ERROR << "Error loading configuration: " << e.what();
             throw;
         }
     }

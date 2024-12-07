@@ -56,5 +56,7 @@
 
 // Project Headers
 #include "nuansa/utils/common.h"
+#include "nuansa/utils/log/log.h"
+
 
 #endif //NUANSA_PCH_H

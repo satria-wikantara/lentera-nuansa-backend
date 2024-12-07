@@ -12,7 +12,7 @@ namespace nuansa::plugin {
 	}
 
 	void PluginManager::HandleMessage(const std::string &sender, const nlohmann::json &message) {
-		BOOST_LOG_TRIVIAL(debug) << "Plugin manager handling message from " << sender;
+		LOG_DEBUG << "Plugin manager handling message from " << sender;
 
 		try {
 			std::string pluginName = message["plugin"].get<std::string>();
@@ -21,10 +21,10 @@ namespace nuansa::plugin {
 			if (it != plugins.end()) {
 				it->second->HandleMessage(sender, message);
 			} else {
-				BOOST_LOG_TRIVIAL(warning) << "Plugin '" << pluginName << "' not found";
+				LOG_WARNING << "Plugin '" << pluginName << "' not found";
 			}
 		} catch (const std::exception &e) {
-			BOOST_LOG_TRIVIAL(error) << "Error handling plugin message: " << e.what();
+			LOG_ERROR << "Error handling plugin message: " << e.what();
 		}
 	}
 }
