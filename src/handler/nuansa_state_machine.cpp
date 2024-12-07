@@ -60,7 +60,7 @@ namespace nuansa::handler {
     }
 
     void WebSocketStateMachine::HandleAuthMessage(const nlohmann::json &msgData) {
-        if (auto type = msgData["header"]["messageType"].get<nuansa::messages::MessageType>();
+        if (const auto type = msgData["header"]["messageType"].get<nuansa::messages::MessageType>();
             type == nuansa::messages::MessageType::Register) {
             HandleRegistration(msgData);
             TransitionTo(ClientState::AwaitingAuth);
@@ -74,7 +74,7 @@ namespace nuansa::handler {
         }
     }
 
-    void WebSocketStateMachine::HandleRegistration(const nlohmann::json &msgData) {
+    void WebSocketStateMachine::HandleRegistration(const nlohmann::json &msgData) const {
         try {
             // Extract header from the nested structure
             auto messageHeader = nuansa::messages::MessageHeader::FromJson(msgData["header"]);
@@ -146,7 +146,11 @@ namespace nuansa::handler {
         }
     }
 
-    bool WebSocketStateMachine::HandleLogin(const nlohmann::json &msgData) {
+    // TODO: create implementation
+    void WebSocketStateMachine::HandleAuth(const std::string &message) {
+    }
+
+    bool WebSocketStateMachine::HandleLogin(const nlohmann::json &msgData) const {
         try {
             auto username = msgData["username"].get<std::string>();
             auto password = msgData["password"].get<std::string>();
@@ -210,16 +214,16 @@ namespace nuansa::handler {
     }
 
     // Helper method to send messages
-    void WebSocketStateMachine::SendMessage(const std::string &message) {
+    void WebSocketStateMachine::SendMessage(const std::string &msgData) const {
         if (!client || !client->GetWebSocket()) {
             BOOST_LOG_TRIVIAL(error) << "Cannot send message - invalid client or websocket";
             return;
         }
 
         try {
-            auto ws = client->GetWebSocket();
+            const auto ws = client->GetWebSocket();
             ws->text(true);
-            ws->write(net::buffer(message));
+            ws->write(net::buffer(msgData));
         } catch (const std::exception &e) {
             BOOST_LOG_TRIVIAL(error) << "Error sending message: " << e.what();
         }
@@ -235,9 +239,7 @@ namespace nuansa::handler {
     }
 
     void WebSocketStateMachine::HandleAuthenticatedState(const nlohmann::json &msgData) {
-        auto type = msgData["type"].get<nuansa::messages::MessageType>();
-
-        switch (type) {
+        switch (msgData["type"].get<nuansa::messages::MessageType>()) {
             case nuansa::messages::MessageType::Logout:
                 HandleLogout();
                 TransitionTo(ClientState::AwaitingAuth);
@@ -278,24 +280,28 @@ namespace nuansa::handler {
         // Implement logout logic
     }
 
-    void WebSocketStateMachine::HandleNewMessage(const nlohmann::json &msg) {
+    void WebSocketStateMachine::HandleNewMessage(const nlohmann::json &msgData) {
         // Implement new message handling
     }
 
-    void WebSocketStateMachine::SendErrorMessage(const std::string &error) {
+    void WebSocketStateMachine::SendErrorMessage(const std::string &msgData) {
         // Implement error message sending
     }
 
-    void WebSocketStateMachine::HandleEditMessage(const nlohmann::json &msg) {
+    void WebSocketStateMachine::HandleEditMessage(const nlohmann::json &msgData) {
         // Implement edit message handling
     }
 
-    void WebSocketStateMachine::HandleDeleteMessage(const nlohmann::json &msg) {
+    void WebSocketStateMachine::HandleDeleteMessage(const nlohmann::json &msgData) {
         // Implement delete message handling
     }
 
-    void WebSocketStateMachine::HandleDirectMessage(const nlohmann::json &msg) {
+    void WebSocketStateMachine::HandleDirectMessage(const nlohmann::json &msgData) {
         // Implement direct message handling
+    }
+
+    // TODO: Implement this
+    void WebSocketStateMachine::HandlePluginMessage(const nlohmann::json &msgData) {
     }
 
     void WebSocketStateMachine::AddAuthenticatedClient() {
