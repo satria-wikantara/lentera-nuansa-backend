@@ -9,7 +9,7 @@ namespace nuansa::database {
         return instance;
     }
 
-    void ConnectionPool::Initialize(const std::string &connectionString, size_t poolSize) {
+    void ConnectionPool::Initialize(const std::string &connectionString, const size_t poolSize) {
         std::lock_guard<std::mutex> lock(mutex_);
 
         if (initialized_) {
@@ -38,11 +38,10 @@ namespace nuansa::database {
         // Try to create at least one connection
         try {
             LOG_INFO << "Creating initial connection";
-            auto conn = CreateConnection();
-            if (conn) {
+            if (auto conn = CreateConnection()) {
                 LOG_INFO << "Pushing initial connection to pool";
                 connections_.push(std::move(conn));
-                activeConnections_++;
+                ++activeConnections_;
             }
             LOG_INFO << "Initial connection created";
         } catch (const std::exception &e) {
@@ -63,10 +62,9 @@ namespace nuansa::database {
         // Try to create remaining connections
         while (connections_.size() < poolSize_) {
             try {
-                auto conn = CreateConnection();
-                if (conn) {
+                if (auto conn = CreateConnection()) {
                     connections_.push(std::move(conn));
-                    activeConnections_++;
+                    ++activeConnections_;
                 }
             } catch (const std::exception &e) {
                 LOG_WARNING << "Failed to create additional connection: " << e.what();
@@ -86,16 +84,6 @@ namespace nuansa::database {
             LOG_ERROR << "Unexpected error creating database connection: " << e.what();
             throw nuansa::utils::errors::DatabaseCreateConnectionException(e.what());
         }
-    }
-
-    bool ConnectionPool::IsTransientError(const std::exception &e) {
-        const std::string error = e.what();
-
-        // Common PostgreSQL transient error codes
-        return error.find("connection lost") != std::string::npos ||
-               error.find("server closed the connection unexpectedly") != std::string::npos ||
-               error.find("timeout") != std::string::npos ||
-               error.find("connection reset by peer") != std::string::npos;
     }
 
     void ConnectionPool::Shutdown() {
@@ -140,39 +128,7 @@ namespace nuansa::database {
         return initialized_;
     }
 
-    std::shared_ptr<pqxx::connection> ConnectionPool::CreateConnectionWithRetry() {
-        return GetCircuitBreaker().Execute([this]() -> std::shared_ptr<pqxx::connection> {
-            const auto &config = retryConfig_;
-            auto delay = config.initialDelay;
-
-            for (size_t attempt = 1; attempt <= config.maxRetries; ++attempt) {
-                try {
-                    return CreateConnection();
-                } catch (const std::exception &e) {
-                    if (attempt == config.maxRetries || !IsTransientError(e)) {
-                        LOG_ERROR << "Failed to create connection after "
-                                           << attempt << " attempts: " << e.what();
-                        throw;
-                    }
-
-                    LOG_WARNING << "Connection attempt " << attempt
-                                         << " failed: " << e.what()
-                                         << ". Retrying in " << delay.count() << "ms";
-
-                    std::this_thread::sleep_for(delay);
-                    auto newDelay = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::duration<double, std::milli>(
-                            delay.count() * config.backoffMultiplier
-                        )
-                    );
-                    delay = newDelay < config.maxDelay ? newDelay : config.maxDelay;
-                }
-            }
-            throw std::runtime_error("Unexpected error in CreateConnectionWithRetry");
-        });
-    }
-
-    std::shared_ptr<pqxx::connection> ConnectionPool::AcquireConnection(std::chrono::milliseconds timeout) {
+    std::shared_ptr<pqxx::connection> ConnectionPool::AcquireConnection(const std::chrono::milliseconds timeout) {
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (!initialized_) {
@@ -183,13 +139,9 @@ namespace nuansa::database {
         LOG_INFO << "Acquiring connection from pool";
 
         // Wait for a connection with timeout
-        auto waitResult = connectionAvailable_.wait_for(lock, timeout, [this] {
+        const auto waitResult = connectionAvailable_.wait_for(lock, timeout, [this] {
             return !initialized_ || !connections_.empty() || activeConnections_ < maxPoolSize_;
         });
-
-        if (!initialized_) {
-            throw std::runtime_error("Connection pool was shut down while waiting");
-        }
 
         if (!waitResult) {
             LOG_ERROR << "Timeout waiting for available connection";
@@ -205,7 +157,7 @@ namespace nuansa::database {
             try {
                 LOG_WARNING << "Creating new connection";
                 conn = CreateConnection();
-                activeConnections_++;
+                ++activeConnections_;
             } catch (const std::exception &e) {
                 LOG_ERROR << "Failed to create new connection: " << e.what();
                 // Notify other waiting threads that a connection attempt failed
@@ -215,7 +167,7 @@ namespace nuansa::database {
         }
 
         if (!conn || !conn->is_open()) {
-            activeConnections_--;
+            --activeConnections_;
             connectionAvailable_.notify_one();
             throw std::runtime_error("Failed to acquire valid database connection");
         }
@@ -280,12 +232,12 @@ namespace nuansa::database {
                 connectionAvailable_.notify_one();
                 LOG_DEBUG << "Connection returned to pool. Pool size: " << connections_.size();
             } else {
-                activeConnections_--;
+                ++activeConnections_;
                 LOG_WARNING << "Discarding dead connection";
                 connectionAvailable_.notify_one();
             }
         } catch (const std::exception &e) {
-            activeConnections_--;
+            ++activeConnections_;
             LOG_ERROR << "Error returning connection: " << e.what();
             connectionAvailable_.notify_one();
         }

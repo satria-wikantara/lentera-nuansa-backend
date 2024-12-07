@@ -6,6 +6,7 @@
 #include "nuansa/models/user.h"
 #include "nuansa/services/user/user_service.h"
 #include "nuansa/database/db_connection_pool.h"
+#include "nuansa/database/db_connection_guard.h"
 #include "nuansa/config/config.h"
 #include "nuansa/utils/crypto/crypto_util.h"
 #include "nuansa/utils/validation/validation.h"

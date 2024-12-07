@@ -20,17 +20,15 @@ namespace nuansa::database {
 
         static ConnectionPool &GetInstance();
 
-        void Initialize(const std::string &connectionString, size_t poolSize = 10);
+        void Initialize(const std::string &connectionString, const size_t poolSize = 10);
 
         std::shared_ptr<pqxx::connection> AcquireConnection(
-            std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
+            const std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
 
         // Add retry configuration
         void SetRetryConfig(const RetryConfig &config) { retryConfig_ = config; }
 
         void ReturnConnection(std::shared_ptr<pqxx::connection> conn);
-
-        bool IsTransientError(const std::exception &e);
 
         void Shutdown();
 
@@ -48,10 +46,13 @@ namespace nuansa::database {
 
         ~ConnectionPool();
 
+        static constexpr auto DEFAULT_TIMEOUT = std::chrono::milliseconds(5000);
+
         std::queue<std::shared_ptr<pqxx::connection> > connections_;
         std::mutex mutex_;
         std::condition_variable connectionAvailable_;
         std::string connectionString_;
+        std::string fallbackConnectionString_;
         size_t poolSize_ = 10;
         size_t maxPoolSize_ = 20; // Maximum number of connections allowed
         std::atomic<size_t> activeConnections_{0};
@@ -62,87 +63,9 @@ namespace nuansa::database {
 
         std::shared_ptr<pqxx::connection> CreateConnection();
 
-        std::shared_ptr<pqxx::connection> CreateConnectionWithRetry();
-
         std::shared_ptr<pqxx::connection> GetFallbackConnection();
 
         void SetFallbackConnectionString(const std::string &connectionString);
-
-        std::string fallbackConnectionString_;
-        static constexpr auto DEFAULT_TIMEOUT = std::chrono::milliseconds(5000);
-    };
-
-    // RAII wrapper for connection handling with retry support
-    class ConnectionGuard {
-    public:
-        explicit ConnectionGuard(std::shared_ptr<pqxx::connection> conn) : conn_(std::move(conn)) {
-        }
-
-        ~ConnectionGuard() {
-            if (conn_) {
-                ConnectionPool::GetInstance().ReturnConnection(std::move(conn_));
-            }
-        }
-
-        template<typename Func>
-        auto ExecuteWithRetry(Func &&func) -> decltype(func(std::declval<pqxx::connection &>())) {
-            const auto &[maxRetries, initialDelay, maxDelay, backoffMultiplier] =
-                    ConnectionPool::GetInstance().GetRetryConfig();
-            auto delay = initialDelay;
-            decltype(func(*conn_)) result;
-
-            // Retry loop: continues on transient errors, exits on success or fatal errors
-            for (size_t attempt = 0; attempt < maxRetries; ++attempt) {
-                try {
-                    if (!conn_) {
-                        throw std::runtime_error("No valid connection");
-                    }
-
-                    try {
-                        conn_->cancel_query();
-                    } catch (...) {
-                        // Ignore cancel errors
-                    }
-                    result = func(*conn_);
-                } catch (const utils::errors::DatabaseConnectionBrokenException &e) {
-                    throw std::runtime_error(e.what());
-                } catch (const std::exception &e) {
-                    if (attempt + 1 == maxRetries || !ConnectionPool::GetInstance().IsTransientError(e)) {
-                        LOG_ERROR << "Database operation failed after "
-                               << (attempt + 1) << " attempts: " << e.what();
-                        throw std::runtime_error(e.what());
-                    }
-
-                    // Only for transient errors:
-                    std::this_thread::sleep_for(delay);
-                    delay = std::min(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::duration<double, std::milli>(
-                                delay.count() * backoffMultiplier
-                            )
-                        ),
-                        maxDelay
-                    );
-                }
-
-                if (result) {
-                    return result;
-                }
-                // Loop will continue to next iteration for transient errors
-            }
-
-            throw std::runtime_error("Unexpected error in ExecuteWithRetry");
-        }
-
-    private:
-        std::shared_ptr<pqxx::connection> conn_;
-
-        bool IsTransientError(const std::exception &e) {
-            const std::string error = e.what();
-            return error.find("connection") != std::string::npos ||
-                   error.find("deadlock") != std::string::npos ||
-                   error.find("timeout") != std::string::npos;
-        }
     };
 } // namespace nuansa::database
 
