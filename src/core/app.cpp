@@ -75,7 +75,7 @@ namespace nuansa::core {
                 config.GetDatabaseConfig().connection_string,
                 config.GetDatabaseConfig().pool_size
             );
-        } catch (const nuansa::utils::errors::DatabaseCreateConnectionError &e) {
+        } catch (const nuansa::utils::errors::DatabaseCreateConnectionException &e) {
             std::cerr << "Database connection pool initialization error: " << e.what() << std::endl;
             return false;
         }

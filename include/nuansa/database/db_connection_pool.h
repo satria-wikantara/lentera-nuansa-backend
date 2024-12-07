@@ -3,6 +3,7 @@
 
 #include "nuansa/pch/pch.h"
 #include "nuansa/utils/patterns/circuit_breaker.h"
+#include "nuansa/utils/errors/database_error.h"
 
 namespace nuansa::database {
     class ConnectionPool {
@@ -38,14 +39,14 @@ namespace nuansa::database {
         // Add circuit breaker configuration
         utils::patterns::CircuitBreaker &GetCircuitBreaker() { return circuitBreaker_; }
 
+        ConnectionPool(const ConnectionPool &) = delete;
+
+        ConnectionPool &operator=(const ConnectionPool &) = delete;
+
     private:
         ConnectionPool() = default;
 
         ~ConnectionPool();
-
-        ConnectionPool(const ConnectionPool &) = delete;
-
-        ConnectionPool &operator=(const ConnectionPool &) = delete;
 
         std::queue<std::shared_ptr<pqxx::connection> > connections_;
         std::mutex mutex_;
@@ -74,7 +75,7 @@ namespace nuansa::database {
     // RAII wrapper for connection handling with retry support
     class ConnectionGuard {
     public:
-        explicit ConnectionGuard(std::shared_ptr<pqxx::connection> conn) : conn_(conn) {
+        explicit ConnectionGuard(std::shared_ptr<pqxx::connection> conn) : conn_(std::move(conn)) {
         }
 
         ~ConnectionGuard() {
@@ -85,43 +86,51 @@ namespace nuansa::database {
 
         template<typename Func>
         auto ExecuteWithRetry(Func &&func) -> decltype(func(std::declval<pqxx::connection &>())) {
-            const auto &retryConfig = ConnectionPool::GetInstance().GetRetryConfig();
-            auto delay = retryConfig.initialDelay;
+            const auto &[maxRetries, initialDelay, maxDelay, backoffMultiplier] =
+                    ConnectionPool::GetInstance().GetRetryConfig();
+            auto delay = initialDelay;
+            decltype(func(*conn_)) result;
 
-            for (size_t attempt = 1; attempt <= retryConfig.maxRetries; ++attempt) {
+            // Retry loop: continues on transient errors, exits on success or fatal errors
+            for (size_t attempt = 0; attempt < maxRetries; ++attempt) {
                 try {
                     if (!conn_) {
                         throw std::runtime_error("No valid connection");
                     }
 
-                    // Cancel any pending operations before starting new transaction
                     try {
                         conn_->cancel_query();
                     } catch (...) {
                         // Ignore cancel errors
                     }
-
-                    return func(*conn_);
-                } catch (const pqxx::broken_connection &e) {
-                    throw;
+                    result = func(*conn_);
+                } catch (const utils::errors::DatabaseConnectionBrokenException &e) {
+                    throw std::runtime_error(e.what());
                 } catch (const std::exception &e) {
-                    if (attempt == retryConfig.maxRetries || !ConnectionPool::GetInstance().IsTransientError(e)) {
+                    if (attempt + 1 == maxRetries || !ConnectionPool::GetInstance().IsTransientError(e)) {
                         LOG_ERROR << "Database operation failed after "
-                                           << attempt << " attempts: " << e.what();
-                        throw;
+                               << (attempt + 1) << " attempts: " << e.what();
+                        throw std::runtime_error(e.what());
                     }
 
+                    // Only for transient errors:
                     std::this_thread::sleep_for(delay);
                     delay = std::min(
                         std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::duration<double, std::milli>(
-                                delay.count() * retryConfig.backoffMultiplier
+                                delay.count() * backoffMultiplier
                             )
                         ),
-                        retryConfig.maxDelay
+                        maxDelay
                     );
                 }
+
+                if (result) {
+                    return result;
+                }
+                // Loop will continue to next iteration for transient errors
             }
+
             throw std::runtime_error("Unexpected error in ExecuteWithRetry");
         }
 

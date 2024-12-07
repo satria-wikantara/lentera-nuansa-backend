@@ -55,7 +55,7 @@ namespace nuansa::database {
         if (initializationFailed || connections_.empty()) {
             LOG_ERROR << "Shutting down connection pool due to initialization failure";
             Shutdown();
-            throw nuansa::utils::errors::DatabaseCreateConnectionError(
+            throw nuansa::utils::errors::DatabaseCreateConnectionException(
                 "Failed to initialize connection pool: " + errorMessage
             );
         }
@@ -84,7 +84,7 @@ namespace nuansa::database {
             return std::make_shared<pqxx::connection>(connectionString_);
         } catch (const std::exception &e) {
             LOG_ERROR << "Unexpected error creating database connection: " << e.what();
-            throw nuansa::utils::errors::DatabaseCreateConnectionError(e.what());
+            throw nuansa::utils::errors::DatabaseCreateConnectionException(e.what());
         }
     }
 
@@ -250,7 +250,7 @@ namespace nuansa::database {
             return conn;
         } catch (const std::exception &e) {
             LOG_ERROR << "Failed to create fallback connection: " << e.what();
-            throw nuansa::utils::errors::DatabaseCreateConnectionError(
+            throw nuansa::utils::errors::DatabaseCreateConnectionException(
                 "No fallback connection available: " + std::string(e.what())
             );
         }

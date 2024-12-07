@@ -8,37 +8,48 @@
 #include <string>
 
 #include "nuansa/pch/pch.h"
+#include "nuansa/utils/errors/exception.h"
 
 namespace nuansa::utils::errors {
-	class DatabaseError : public std::runtime_error {
-		using std::runtime_error::runtime_error;
-	};
-
-	class DatabaseCreateConnectionError : public DatabaseError {
+	class DatabaseException : public nuansa::utils::errors::Exception {
 	public:
-		explicit DatabaseCreateConnectionError(const std::string &message)
-			: DatabaseError("Database connection creation error: " + message) {
+		explicit DatabaseException(const std::string &message)
+			: Exception(message) {
 		}
 	};
 
-	class DatabaseConnectionPoolInitializationError : public DatabaseError {
+	class DatabaseCreateConnectionException : public DatabaseException {
 	public:
-		explicit DatabaseConnectionPoolInitializationError(const std::string &message)
-			: DatabaseError("Database connection pool initialization error: " + message) {
+		explicit DatabaseCreateConnectionException(const std::string &message)
+			: DatabaseException("Database connection creation error: " + message) {
 		}
 	};
 
-	class DatabaseQueryExecutionError : public DatabaseError {
+	class DatabaseConnectionPoolInitializationException : public DatabaseException {
 	public:
-		explicit DatabaseQueryExecutionError(const std::string &message)
-			: DatabaseError("Database query execution error: " + message) {
+		explicit DatabaseConnectionPoolInitializationException(const std::string &message)
+			: DatabaseException("Database connection pool initialization error: " + message) {
 		}
 	};
 
-	class DatabaseConnectionPoolError : public DatabaseError {
+	class DatabaseQueryExecutionException : public DatabaseException {
 	public:
-		explicit DatabaseConnectionPoolError(const std::string &message)
-			: DatabaseError("Database connection pool error: " + message) {
+		explicit DatabaseQueryExecutionException(const std::string &message)
+			: DatabaseException("Database query execution error: " + message) {
+		}
+	};
+
+	class DatabaseConnectionPoolException : public DatabaseException {
+	public:
+		explicit DatabaseConnectionPoolException(const std::string &message)
+			: DatabaseException("Database connection pool error: " + message) {
+		}
+	};
+
+	class DatabaseConnectionBrokenException final : public pqxx::broken_connection {
+	public:
+		explicit DatabaseConnectionBrokenException(const std::string &message)
+			: pqxx::broken_connection(message) {
 		}
 	};
 }
