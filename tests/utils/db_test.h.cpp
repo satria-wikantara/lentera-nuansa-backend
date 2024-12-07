@@ -5,13 +5,12 @@
 #define DB_TEST_H
 
 #include "nuansa/pch/pch.h"
-#include "nuansa/config/config.h"
 #include "nuansa/database/db_connection_pool.h"
 
 namespace nuansa::tests::utils {
     inline void InitTestDatabase() {
         try {
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             pqxx::work txn(*conn);
 
             // Create tables needed for tests

@@ -14,11 +14,10 @@ namespace http = beast::http;
 
 
 namespace nuansa::core {
-    bool Initialize(const std::string &configPath) {
-        return CheckForRootUser() &&
-               InitializeConfig(configPath) &&
-               InitializeLogging() &&
-               InitializeDatabase();
+    void Initialize(const std::string &configPath) {
+        InitializeConfig(configPath);
+        InitializeLogging();
+        InitializeDatabase();
     }
 
     bool CheckForRootUser() {
@@ -30,7 +29,7 @@ namespace nuansa::core {
         return true;
     }
 
-    bool InitializeConfig(const std::string &configPath) {
+    void InitializeConfig(const std::string &configPath) {
         try {
             // Initialize configurations
             auto &config = nuansa::config::GetConfig();
@@ -38,12 +37,10 @@ namespace nuansa::core {
         } catch (const std::exception &e) {
             throw std::runtime_error("Failed to load config file: " + std::string(e.what()));
         }
-
-        return true;
     }
 
-    bool InitializeLogging() {
-        auto &config = nuansa::config::GetConfig();
+    void InitializeLogging() {
+        const auto &config = nuansa::config::GetConfig();
         std::filesystem::create_directories(std::filesystem::path(config.GetServerConfig().logPath).parent_path());
 
         boost::log::register_simple_formatter_factory<boost::log::trivial::severity_level, char>("Severity");
@@ -63,12 +60,10 @@ namespace nuansa::core {
 
         // Add common attributes
         boost::log::add_common_attributes();
-
-        return true;
     }
 
-    bool InitializeDatabase() {
-        auto &config = nuansa::config::GetConfig();
+    void InitializeDatabase() {
+        const auto &config = nuansa::config::GetConfig();
 
         try {
             nuansa::database::ConnectionPool::GetInstance().Initialize(
@@ -77,17 +72,15 @@ namespace nuansa::core {
             );
         } catch (const nuansa::utils::exception::DatabaseCreateConnectionException &e) {
             std::cerr << "Database connection pool initialization error: " << e.what() << std::endl;
-            return false;
+            throw;
         }
-
-        return true;
     }
 
     void Run(const utils::ProgramOptions &options) {
         LOG_DEBUG << "Starting Run() with command: " << options.GetCommand();
-
+        nuansa::core::Initialize(options.GetConfigFilePath().string());
         // If any of the checks fail, return an error
-        if (!nuansa::core::Initialize(options.GetConfigFilePath().string())) {
+        if (!CheckForRootUser()) {
             LOG_ERROR << "Failed to initialize core components";
             return;
         }
@@ -107,11 +100,11 @@ namespace nuansa::core {
                 auto handler = std::make_shared<nuansa::handler::WebSocketHandler>(websocketServer);
 
                 // Start accepting connections asynchronously
-                auto DoAccept = [&acceptor, &ioc, handler](auto &&self) -> void {
+                auto DoAccept = [&acceptor, &ioc, handler]<typename T0>(T0 &&self) -> void {
                     LOG_DEBUG << "Starting async accept";
                     acceptor.async_accept(
-                        [handler, &acceptor, self=std::forward<decltype(self)>(self)]
-                (boost::system::error_code ec, tcp::socket socket) {
+                        [handler, &acceptor, self=std::forward<T0>(self)]
+                (const boost::system::error_code &ec, tcp::socket socket) {
                             if (!ec) {
                                 LOG_DEBUG << "New connection accepted";
                                 // Create WebSocket stream
@@ -119,8 +112,8 @@ namespace nuansa::core {
 
                                 // Accept WebSocket handshake asynchronously
                                 ws->async_accept(
-                                    [handler, ws](boost::system::error_code ec) {
-                                        if (!ec) {
+                                    [handler, ws](const boost::system::error_code &ws_ec) {
+                                        if (!ws_ec) {
                                             LOG_DEBUG << "WebSocket handshake successful";
                                             // Set suggested timeout options
                                             ws->set_option(websocket::stream_base::timeout::suggested(
@@ -144,7 +137,7 @@ namespace nuansa::core {
                                                 // Let the WebSocket close naturally through RAII
                                             }).detach();
                                         } else {
-                                            LOG_ERROR << "WebSocket accept error: " << ec.message();
+                                            LOG_ERROR << "WebSocket accept error: " << ws_ec.message();
                                         }
                                     });
                             } else {
@@ -163,7 +156,7 @@ namespace nuansa::core {
 
                 // Run the io_context
                 std::vector<std::thread> threads;
-                auto thread_count = std::thread::hardware_concurrency();
+                const auto thread_count = std::thread::hardware_concurrency();
                 threads.reserve(thread_count);
 
                 LOG_DEBUG << "Creating " << thread_count << " IO threads";

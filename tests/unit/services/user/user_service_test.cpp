@@ -6,11 +6,11 @@
 #include <gtest/gtest.h>
 #include "nuansa/services/user/user_service.h"
 #include "nuansa/database/db_connection_pool.h"
+#include "nuansa/database/db_connection_guard.h"
 #include "nuansa/config/config.h"
-#include "nuansa/utils/exception/database_error.h"
-#include "nuansa/utils/patterns/circuit_breaker.h"
-#include "nuansa/utils/crypto/crypto_util.h"
-#include "nuansa/utils/validation/validation.h"
+#include "nuansa/utils/exception/database_exception.h"
+#include "nuansa/utils/pattern/circuit_breaker.h"
+#include "nuansa/utils/validation.h"
 
 class UserServiceTest : public ::testing::Test {
 protected:
@@ -19,7 +19,7 @@ protected:
             BOOST_LOG_TRIVIAL(info) << "Setting up UserServiceTest";
 
             // Configure test database
-            nuansa::config::DatabaseConfig testConfig{
+            const nuansa::config::DatabaseConfig testConfig{
                 .host = "localhost",
                 .port = 5432,
                 .database_name = "nuansa_test",
@@ -29,7 +29,7 @@ protected:
             };
 
             BOOST_LOG_TRIVIAL(info) << "Setting up server config";
-            nuansa::config::ServerConfig testServerConfig{
+            const nuansa::config::ServerConfig testServerConfig{
                 .port = 8080,
                 .host = "localhost",
                 .logPath = "logs/test.log",
@@ -42,7 +42,7 @@ protected:
             config.SetServerConfig(testServerConfig);
 
             // Initialize database connection pool
-            auto connectionString =
+            const auto connectionString =
                     "postgresql://" + testConfig.username + ":" + testConfig.password +
                     "@" + testConfig.host + ":" + std::to_string(testConfig.port) +
                     "/" + testConfig.database_name;
@@ -73,7 +73,7 @@ protected:
         }
     }
 
-    void CleanupTestData() {
+    static void CleanupTestData() {
         try {
             auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection(
                 std::chrono::milliseconds(1000)
@@ -81,8 +81,8 @@ protected:
 
             nuansa::database::ConnectionGuard guard(std::move(conn));
 
-            guard.ExecuteWithRetry([](pqxx::connection &conn) {
-                pqxx::work txn{conn};
+            guard.ExecuteWithRetry([](pqxx::connection &db_conn) {
+                pqxx::work txn{db_conn};
                 txn.exec("DELETE FROM users");
                 txn.commit();
                 return true;
@@ -93,14 +93,13 @@ protected:
         }
     }
 
-    bool CreateTestUser(const std::string &username = "testuser",
-                        const std::string &email = "test@example.com",
-                        const std::string &password = "Password123#*") {
-        std::string salt = GenerateRandomSalt();
+    static bool CreateTestUser(const std::string &username = "testuser",
+                               const std::string &email = "test@example.com",
+                               const std::string &password = "Password123#*") {
+        const std::string salt = GenerateRandomSalt();
 
         // Verify circuit breaker state
-        auto &circuitBreaker = nuansa::utils::patterns::CircuitBreaker::GetInstance();
-        if (circuitBreaker.IsOpen()) {
+        if (auto &circuitBreaker = nuansa::utils::pattern::CircuitBreaker::GetInstance(); circuitBreaker.IsOpen()) {
             BOOST_LOG_TRIVIAL(warning) << "Circuit breaker is OPEN before creating test user";
             circuitBreaker.Reset(); // Force reset if open
         }
@@ -109,12 +108,12 @@ protected:
             nuansa::models::User(username, email, password, salt));
     }
 
-    std::optional<nuansa::models::User> GetTestUser(const std::string &username = "testuser") {
+    static std::optional<nuansa::models::User> GetTestUser(const std::string &username = "testuser") {
         return nuansa::services::user::UserService::GetInstance()
                 .GetUserByUsername(username);
     }
 
-    bool InitializeConfig(const std::string &configPath) {
+    static bool InitializeConfig(const std::string &configPath) {
         try {
             // Initialize configurations
             auto &config = nuansa::config::GetConfig();
@@ -126,15 +125,15 @@ protected:
         return true;
     }
 
-    bool InitializeDatabase() {
-        auto &config = nuansa::config::GetConfig();
+    static bool InitializeDatabase() {
+        const auto &config = nuansa::config::GetConfig();
 
         try {
             nuansa::database::ConnectionPool::GetInstance().Initialize(
                 config.GetDatabaseConfig().connection_string,
                 config.GetDatabaseConfig().pool_size
             );
-        } catch (const nuansa::utils::errors::DatabaseCreateConnectionError &e) {
+        } catch (const nuansa::utils::exception::DatabaseCreateConnectionException &e) {
             std::cerr << "Database connection pool initialization error: " << e.what() << std::endl;
             return false;
         }
@@ -142,8 +141,8 @@ protected:
         return true;
     }
 
-    bool InitializeLogging() {
-        auto &config = nuansa::config::GetConfig();
+    static bool InitializeLogging() {
+        const auto &config = nuansa::config::GetConfig();
         std::filesystem::create_directories(std::filesystem::path(config.GetServerConfig().logPath).parent_path());
 
         boost::log::register_simple_formatter_factory<boost::log::trivial::severity_level, char>("Severity");
@@ -169,8 +168,8 @@ protected:
 
 
     // Add helper function to generate salt
-    std::string GenerateRandomSalt(size_t length = 32) {
-        static const char charset[] = "0123456789"
+    static std::string GenerateRandomSalt(const size_t length = 32) {
+        static constexpr char charset[] = "0123456789"
                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                 "abcdefghijklmnopqrstuvwxyz";
         std::string salt;
@@ -257,7 +256,7 @@ TEST_F(UserServiceTest, RegisterUserDuplicateEmail) {
 TEST_F(UserServiceTest, GetUserByUsername) {
     EXPECT_TRUE(CreateTestUser());
 
-    auto user = GetTestUser();
+    const auto user = GetTestUser();
     ASSERT_TRUE(user.has_value());
     EXPECT_EQ(user->GetUsername(), "testuser");
     EXPECT_EQ(user->GetEmail(), "test@example.com");
@@ -266,7 +265,7 @@ TEST_F(UserServiceTest, GetUserByUsername) {
 // Test getting non-existent user by username
 TEST_F(UserServiceTest, GetUserByUsernameNotFound) {
     auto &service = nuansa::services::user::UserService::GetInstance();
-    auto user = service.GetUserByUsername("nonexistent");
+    const auto user = service.GetUserByUsername("nonexistent");
     EXPECT_FALSE(user.has_value());
 }
 
@@ -275,7 +274,7 @@ TEST_F(UserServiceTest, GetUserByEmail) {
     auto &service = nuansa::services::user::UserService::GetInstance();
     CreateTestUser("testuser", "test@example.com", "Password123#*");
 
-    auto user = service.GetUserByEmail("test@example.com");
+    const auto user = service.GetUserByEmail("test@example.com");
     ASSERT_TRUE(user.has_value());
     EXPECT_EQ(user->GetUsername(), "testuser");
     EXPECT_EQ(user->GetEmail(), "test@example.com");
@@ -284,7 +283,7 @@ TEST_F(UserServiceTest, GetUserByEmail) {
 // Test getting non-existent user by email
 TEST_F(UserServiceTest, GetUserByEmailNotFound) {
     auto &service = nuansa::services::user::UserService::GetInstance();
-    auto user = service.GetUserByEmail("nonexistent@example.com");
+    const auto user = service.GetUserByEmail("nonexistent@example.com");
     EXPECT_FALSE(user.has_value());
 }
 
@@ -292,7 +291,7 @@ TEST_F(UserServiceTest, GetUserByEmailNotFound) {
 TEST_F(UserServiceTest, IsEmailTaken) {
     EXPECT_TRUE(CreateTestUser());
 
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    const auto &service = nuansa::services::user::UserService::GetInstance();
     EXPECT_TRUE(service.IsEmailTaken("test@example.com"));
     EXPECT_FALSE(service.IsEmailTaken("other@example.com"));
 }
@@ -301,7 +300,7 @@ TEST_F(UserServiceTest, IsEmailTaken) {
 TEST_F(UserServiceTest, IsUsernameTaken) {
     EXPECT_TRUE(CreateTestUser());
 
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    const auto &service = nuansa::services::user::UserService::GetInstance();
     EXPECT_TRUE(service.IsUsernameTaken("testuser"));
     EXPECT_FALSE(service.IsUsernameTaken("otheruser"));
 }
@@ -309,7 +308,7 @@ TEST_F(UserServiceTest, IsUsernameTaken) {
 
 // Test database error handling for email check
 TEST_F(UserServiceTest, IsEmailTakenDatabaseError) {
-    nuansa::config::DatabaseConfig invalidConfig{
+    const nuansa::config::DatabaseConfig invalidConfig{
         .host = "invalid_host",
         .port = 5432,
         .database_name = "invalid_db",
@@ -319,13 +318,13 @@ TEST_F(UserServiceTest, IsEmailTakenDatabaseError) {
     };
 
     nuansa::config::Config::GetInstance().SetDatabaseConfig(invalidConfig);
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    const auto &service = nuansa::services::user::UserService::GetInstance();
     EXPECT_FALSE(service.IsEmailTaken("test@example.com"));
 }
 
 // Test database error handling for username check
 TEST_F(UserServiceTest, IsUsernameTakenDatabaseError) {
-    nuansa::config::DatabaseConfig invalidConfig{
+    const nuansa::config::DatabaseConfig invalidConfig{
         .host = "invalid_host",
         .port = 5432,
         .database_name = "invalid_db",
@@ -335,13 +334,13 @@ TEST_F(UserServiceTest, IsUsernameTakenDatabaseError) {
     };
 
     nuansa::config::Config::GetInstance().SetDatabaseConfig(invalidConfig);
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    const auto &service = nuansa::services::user::UserService::GetInstance();
     EXPECT_FALSE(service.IsUsernameTaken("testuser"));
 }
 
 // Test invalid username formats
 TEST_F(UserServiceTest, RegisterUserInvalidUsername) {
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    nuansa::services::user::UserService::GetInstance();
 
     // Test empty username
     EXPECT_FALSE(CreateTestUser("", "test@example.com", "Password123#*"));
@@ -350,7 +349,7 @@ TEST_F(UserServiceTest, RegisterUserInvalidUsername) {
     EXPECT_FALSE(CreateTestUser("ab", "test@example.com", "Password123#*"));
 
     // Test username too long
-    std::string longUsername(33, 'a'); // 33 characters
+    const std::string longUsername(33, 'a'); // 33 characters
     EXPECT_FALSE(CreateTestUser(longUsername, "test@example.com", "Password123#*"));
 
     // Test username with invalid characters
@@ -360,7 +359,7 @@ TEST_F(UserServiceTest, RegisterUserInvalidUsername) {
 
 // Test invalid email formats
 TEST_F(UserServiceTest, RegisterUserInvalidEmail) {
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    nuansa::services::user::UserService::GetInstance();
 
     // Test empty email
     EXPECT_FALSE(CreateTestUser("testuser1", "", "Password123#*"));
@@ -374,7 +373,7 @@ TEST_F(UserServiceTest, RegisterUserInvalidEmail) {
 
 // Test invalid password requirements
 TEST_F(UserServiceTest, RegisterUserInvalidPassword) {
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    nuansa::services::user::UserService::GetInstance();
 
     // Test empty password
     EXPECT_FALSE(CreateTestUser("testuser1", "test@example.com", ""));
@@ -383,7 +382,7 @@ TEST_F(UserServiceTest, RegisterUserInvalidPassword) {
     EXPECT_FALSE(CreateTestUser("testuser2", "test@example.com", "pass"));
 
     // Test password too long
-    std::string longPassword(129, 'a'); // 129 characters
+    const std::string longPassword(129, 'a'); // 129 characters
     EXPECT_FALSE(CreateTestUser("testuser3", "test@example.com", longPassword));
 }
 
@@ -409,7 +408,7 @@ TEST_F(UserServiceTest, UpdateUser) {
 
     // Test email update
     EXPECT_TRUE(service.UpdateUserEmail("testuser", "newemail@example.com"));
-    auto user = GetTestUser();
+    const auto user = GetTestUser();
     ASSERT_TRUE(user.has_value());
     EXPECT_EQ(user->GetEmail(), "newemail@example.com");
 
@@ -440,17 +439,17 @@ TEST_F(UserServiceTest, ConcurrentOperations) {
     auto &service = nuansa::services::user::UserService::GetInstance();
 
     std::vector<std::thread> threads;
-    const int numThreads = 10;
+    constexpr int numThreads = 10;
 
     for (int i = 0; i < numThreads; ++i) {
         threads.emplace_back([&service, i]() {
-            std::string username = "user" + std::to_string(i);
-            std::string email = "user" + std::to_string(i) + "@example.com";
+            const std::string username = "user" + std::to_string(i);
+            const std::string email = "user" + std::to_string(i) + "@example.com";
 
             EXPECT_TRUE(service.CreateUser(nuansa::models::User(username, email, "Password123#*", "")));
             EXPECT_TRUE(service.AuthenticateUser(username, "Password123#*"));
 
-            auto user = service.GetUserByUsername(username);
+            const auto user = service.GetUserByUsername(username);
             EXPECT_TRUE(user.has_value());
         });
     }
@@ -462,7 +461,7 @@ TEST_F(UserServiceTest, ConcurrentOperations) {
 
 // Test transaction rollback
 TEST_F(UserServiceTest, TransactionRollback) {
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    const auto &service = nuansa::services::user::UserService::GetInstance();
     EXPECT_TRUE(CreateTestUser());
 
     // This should fail and not affect the database state
@@ -497,7 +496,7 @@ TEST_F(UserServiceTest, UpdateUserPasswordInvalid) {
     EXPECT_FALSE(service.UpdateUserPassword("testuser", "short"));
 
     // Test password too long
-    std::string longPassword(129, 'a'); // 129 characters
+    const std::string longPassword(129, 'a'); // 129 characters
     EXPECT_FALSE(service.UpdateUserPassword("testuser", longPassword));
 
     // Test updating non-existent user
@@ -507,11 +506,11 @@ TEST_F(UserServiceTest, UpdateUserPasswordInvalid) {
 // Test CreateUser method directly
 TEST_F(UserServiceTest, CreateUserDirect) {
     auto &service = nuansa::services::user::UserService::GetInstance();
-    nuansa::models::User user("testuser", "test@example.com", "HashedPassword123#*", "");
+    const nuansa::models::User user("testuser", "test@example.com", "HashedPassword123#*", "");
 
     service.CreateUser(user);
 
-    auto fetchedUser = GetTestUser();
+    const auto fetchedUser = GetTestUser();
     ASSERT_TRUE(fetchedUser.has_value());
     EXPECT_EQ(fetchedUser->GetUsername(), user.GetUsername());
     EXPECT_EQ(fetchedUser->GetEmail(), user.GetEmail());
@@ -519,18 +518,18 @@ TEST_F(UserServiceTest, CreateUserDirect) {
 
 // Test password hash validation
 TEST_F(UserServiceTest, PasswordHashValidation) {
-    auto &service = nuansa::services::user::UserService::GetInstance();
+    nuansa::services::user::UserService::GetInstance();
     EXPECT_TRUE(CreateTestUser());
 
     // Test empty password (should only validate length requirements)
-    EXPECT_TRUE(nuansa::utils::validation::ValidatePassword("ValidPassword123#*"));
-    EXPECT_FALSE(nuansa::utils::validation::ValidatePassword("Short"));
+    EXPECT_TRUE(nuansa::utils::Validation::ValidatePassword("ValidPassword123#*"));
+    EXPECT_FALSE(nuansa::utils::Validation::ValidatePassword("Short"));
 
     // Test valid password format but invalid credentials
-    auto user = GetTestUser();
+    const auto user = GetTestUser();
     ASSERT_TRUE(user.has_value());
-    EXPECT_FALSE(nuansa::utils::validation::ValidatePassword("WrongPassword#*"));
-    EXPECT_TRUE(nuansa::utils::validation::ValidatePassword("Password123#*"));
+    EXPECT_FALSE(nuansa::utils::Validation::ValidatePassword("WrongPassword#*"));
+    EXPECT_TRUE(nuansa::utils::Validation::ValidatePassword("Password123#*"));
 }
 
 // Test database connection errors for all operations
@@ -538,7 +537,7 @@ TEST_F(UserServiceTest, DatabaseConnectionErrors) {
     auto &service = nuansa::services::user::UserService::GetInstance();
 
     // Setup invalid database configuration
-    nuansa::config::DatabaseConfig invalidConfig{
+    const nuansa::config::DatabaseConfig invalidConfig{
         .host = "invalid_host",
         .port = 5432,
         .database_name = "invalid_db",
@@ -563,13 +562,13 @@ TEST_F(UserServiceTest, ConcurrentUserUpdates) {
     EXPECT_TRUE(CreateTestUser());
 
     std::vector<std::thread> threads;
-    const int numThreads = 5;
+    constexpr int numThreads = 5;
     std::mutex testMutex;
 
     for (int i = 0; i < numThreads; ++i) {
         threads.emplace_back([&service, &testMutex, i]() {
-            std::string newEmail = "user" + std::to_string(i) + "@example.com";
-            std::string newPassword = "Password" + std::to_string(i) + "#*";
+            const std::string newEmail = "user" + std::to_string(i) + "@example.com";
+            const std::string newPassword = "Password" + std::to_string(i) + "#*";
 
             // Use a mutex to prevent race conditions during updates
             {
@@ -588,7 +587,7 @@ TEST_F(UserServiceTest, ConcurrentUserUpdates) {
     }
 
     // Verify user still exists and is valid
-    auto user = GetTestUser();
+    const auto user = GetTestUser();
     ASSERT_TRUE(user.has_value());
 }
 
@@ -600,7 +599,7 @@ TEST_F(UserServiceTest, HexConversion) {
     EXPECT_TRUE(CreateTestUser());
 
     // Get the user to verify hash format
-    auto user = GetTestUser();
+    const auto user = GetTestUser();
     ASSERT_TRUE(user.has_value());
 
     // Get the password hash and salt

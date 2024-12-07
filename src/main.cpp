@@ -1,8 +1,7 @@
-#include <iostream>
 #include "nuansa/utils/program_options.h"
 #include "nuansa/core/app.h"
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
      nuansa::utils::ProgramOptions options(argc, argv);
 
      if (!options.Parse() || !options.Validate()) {

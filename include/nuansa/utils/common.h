@@ -5,10 +5,10 @@
 #ifndef NUANSA_UTILS_COMMON_H
 #define NUANSA_UTILS_COMMON_H
 
-#include "nuansa/pch/pch.h"
-
 namespace nuansa::utils {
-	inline constexpr const char *VERSION = "0.0.1";
+	inline constexpr auto VERSION = "0.0.1";
+	inline constexpr auto CONFIG_FILE_OPTION = "config,c";
+	inline constexpr auto DEFAULT_CONFIG_FILE = "config.yml";
 } // namespace nuansa::utils
 
 #endif  // NUANSA_UTILS_COMMON_H

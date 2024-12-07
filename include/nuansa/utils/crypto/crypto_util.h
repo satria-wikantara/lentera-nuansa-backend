@@ -8,11 +8,18 @@
 #include "nuansa/pch/pch.h"
 
 namespace nuansa::utils::crypto {
-	std::string GenerateSHA256Hash(const std::string &content);
+	class CryptoUtil {
+	public:
+		CryptoUtil();
 
-	std::string GenerateRandomSalt();
+		~CryptoUtil();
 
-	std::string HashPassword(const std::string &password, const std::string &salt);
+		static std::string GenerateSHA256Hash(const std::string &content);
+
+		static std::string GenerateRandomSalt();
+
+		static std::string HashPassword(const std::string &password, const std::string &salt);
+	};
 }
 
 #endif //NUANSA_CRYPTO_UTIL_H

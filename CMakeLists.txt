@@ -103,7 +103,9 @@ add_library(${PROJECT_NAME}_lib STATIC ${SOURCES}
         include/nuansa/database/db_connection_guard.h
         include/nuansa/utils/exception/websocket_exception.h
         include/nuansa/utils/exception/circuit_breaker_exception.h
-        include/nuansa/utils/exception/database_exception.h)
+        include/nuansa/utils/exception/database_exception.h
+        include/nuansa/utils/pattern/circuit_breaker.h
+        include/nuansa/utils/validation.h)
 target_include_directories(${PROJECT_NAME}_lib
         PUBLIC ${CMAKE_SOURCE_DIR}/include
         PRIVATE

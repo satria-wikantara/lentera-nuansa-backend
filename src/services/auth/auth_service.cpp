@@ -6,7 +6,7 @@
 #include "nuansa/services/auth/auth_service.h"
 #include "nuansa/messages/message_types.h"
 #include "nuansa/services/user/user_service.h"
-#include "nuansa/utils/validation/validation.h"
+#include "nuansa/utils/validation.h"
 
 namespace nuansa::services::auth {
     AuthService &AuthService::GetInstance() {
@@ -25,16 +25,16 @@ namespace nuansa::services::auth {
         std::lock_guard<std::mutex> lock(authMutex);
 
         // Delegate authentication to UserService
-        auto &userService = nuansa::services::user::UserService::GetInstance();
-        if (!userService.AuthenticateUser(request.username, request.password)) {
+        if (auto &userService = nuansa::services::user::UserService::GetInstance(); !userService.AuthenticateUser(
+            request.username, request.password)) {
             return nuansa::messages::AuthResponse{false, "", "Invalid credentials"};
         }
 
         // Generate new token
-        std::string token = GenerateToken(request.username);
+        const std::string token = GenerateToken(request.username);
 
         // Store token info
-        TokenInfo tokenInfo{
+        const TokenInfo tokenInfo{
             request.username,
             std::chrono::system_clock::now() + std::chrono::hours(24)
         };
@@ -46,7 +46,7 @@ namespace nuansa::services::auth {
     bool AuthService::ValidateToken(const std::string &token) {
         std::lock_guard<std::mutex> lock(authMutex);
 
-        auto it = activeTokens.find(token);
+        const auto it = activeTokens.find(token);
         if (it == activeTokens.end()) {
             return false;
         }
@@ -67,9 +67,8 @@ namespace nuansa::services::auth {
     std::optional<std::string> AuthService::GetUsernameFromToken(const std::string &token) {
         std::lock_guard<std::mutex> lock(authMutex);
 
-        auto it = activeTokens.find(token);
-        if (it != activeTokens.end() &&
-            std::chrono::system_clock::now() <= it->second.expirationTime) {
+        if (const auto it = activeTokens.find(token); it != activeTokens.end() &&
+                                                      std::chrono::system_clock::now() <= it->second.expirationTime) {
             return it->second.username;
         }
 
@@ -78,13 +77,13 @@ namespace nuansa::services::auth {
 
     std::string AuthService::GenerateToken(const std::string &username) {
         boost::uuids::random_generator gen;
-        auto uuid = gen();
+        const auto uuid = gen();
         return boost::uuids::to_string(uuid);
     }
 
     void AuthService::CleanupExpiredTokens() {
         std::lock_guard<std::mutex> lock(authMutex);
-        auto now = std::chrono::system_clock::now();
+        const auto now = std::chrono::system_clock::now();
 
         for (auto it = activeTokens.begin(); it != activeTokens.end();) {
             if (now > it->second.expirationTime) {
@@ -99,19 +98,19 @@ namespace nuansa::services::auth {
         std::lock_guard<std::mutex> lock(authMutex);
 
         // Validate username
-        if (!nuansa::utils::validation::ValidateUsername(request.username)) {
+        if (!nuansa::utils::Validation::ValidateUsername(request.username)) {
             LOG_WARNING << "Invalid username format: " << request.username;
             return nuansa::messages::AuthResponse{false, "", "Invalid username format"};
         }
 
         // Validate email
-        if (!nuansa::utils::validation::ValidateEmail(request.email)) {
+        if (!nuansa::utils::Validation::ValidateEmail(request.email)) {
             LOG_WARNING << "Invalid email format: " << request.email;
             return nuansa::messages::AuthResponse{false, "", "Invalid email format"};
         }
 
         // Validate password
-        if (!nuansa::utils::validation::ValidatePassword(request.password)) {
+        if (!nuansa::utils::Validation::ValidatePassword(request.password)) {
             LOG_WARNING << "Invalid password format";
             return nuansa::messages::AuthResponse{false, "", "Invalid password format"};
         }
@@ -119,17 +118,17 @@ namespace nuansa::services::auth {
         // Delegate registration to UserService
         auto &userService = nuansa::services::user::UserService::GetInstance();
 
-        std::string salt = nuansa::models::User::GenerateSalt();
-        std::string hashedPassword = nuansa::utils::crypto::HashPassword(request.password, salt);
-        if (!userService.CreateUser(nuansa::models::User{request.username, request.email, hashedPassword, salt})) {
+        const std::string salt = nuansa::models::User::GenerateSalt();
+        if (const std::string hashedPassword = nuansa::utils::crypto::CryptoUtil::HashPassword(request.password, salt);
+            !userService.CreateUser(nuansa::models::User{request.username, request.email, hashedPassword, salt})) {
             return nuansa::messages::AuthResponse{false, "", "Registration failed"};
         }
 
         // Generate new token for the newly registered user
-        std::string token = GenerateToken(request.username);
+        const std::string token = GenerateToken(request.username);
 
         // Store token info
-        TokenInfo tokenInfo{
+        const TokenInfo tokenInfo{
             request.username,
             std::chrono::system_clock::now() + std::chrono::hours(24)
         };

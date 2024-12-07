@@ -4,14 +4,13 @@
 #include "nuansa/pch/pch.h"
 
 #include "nuansa/utils/program_options.h"
-#include "nuansa/utils/option_constants.h"
 
 namespace nuansa::utils {
-    ProgramOptions::ProgramOptions(int argc, char *argv[])
+    ProgramOptions::ProgramOptions(const int argc, char *argv[])
         : argc_(argc)
           , argv_(argv)
-          , descriptions_("Allowed options")
           , positional_options_()
+          , descriptions_("Allowed options")
           , variables_() {
         InitializeOptions();
     }
@@ -41,7 +40,7 @@ namespace nuansa::utils {
             boost::program_options::notify(variables_);
 
             // If help was specified, display it and return false
-            if (variables_.count("help")) {
+            if (variables_.contains("help")) {
                 std::cout << descriptions_ << std::endl;
                 return false;
             }
@@ -57,9 +56,9 @@ namespace nuansa::utils {
     bool ProgramOptions::Validate() const {
         try {
             // Validate config file path
-            if (variables_.count("config")) {
-                std::filesystem::path configFilePath = GetConfigFilePath();
-                if (!std::filesystem::exists(configFilePath)) {
+            if (variables_.contains("config")) {
+                if (const std::filesystem::path configFilePath = GetConfigFilePath(); !
+                    std::filesystem::exists(configFilePath)) {
                     std::cerr << "Config file does not exist: " << configFilePath << std::endl;
                     return false;
                 }

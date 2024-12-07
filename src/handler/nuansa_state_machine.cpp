@@ -6,7 +6,6 @@
 #include "nuansa/pch/pch.h"
 
 #include "nuansa/handler/websocket_client.h"
-#include "nuansa/handler/websocket_handler.h"
 #include "nuansa/handler/websocket_state_machine.h"
 #include "nuansa/services/auth/auth_service.h"
 #include "nuansa/messages/message_types.h"

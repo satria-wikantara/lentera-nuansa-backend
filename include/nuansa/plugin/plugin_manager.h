@@ -5,23 +5,24 @@
 #include "nuansa/plugin/iplugin.h"
 
 namespace nuansa::plugin {
-
 	class PluginManager {
 	public:
-		static PluginManager& GetInstance();
+		static PluginManager &GetInstance();
 
-		void LoadPlugin(std::shared_ptr<IPlugin> plugin);
-		void UnloadPlugin(const std::string& pluginName);
-		void HandleMessage(const std::string& sender, const nlohmann::json& message);
+		static void LoadPlugin(std::shared_ptr<IPlugin> plugin);
+
+		static void UnloadPlugin(const std::string &pluginName);
+
+		void HandleMessage(const std::string &sender, const nlohmann::json &message);
 
 		template<typename T>
-		std::shared_ptr<T> GetPlugin(const std::string& name);
+		static std::shared_ptr<T> GetPlugin(const std::string &name);
 
 	private:
 		PluginManager() = default;
-		std::unordered_map<std::string, std::shared_ptr<IPlugin>> plugins;
-		std::mutex pluginMutex;
 
+		std::unordered_map<std::string, std::shared_ptr<IPlugin> > plugins;
+		std::mutex pluginMutex;
 	};
 }
 

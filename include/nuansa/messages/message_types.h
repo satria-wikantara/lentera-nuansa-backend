@@ -70,7 +70,7 @@ namespace nuansa::messages {
         void UpdateHeaders(const std::string &content) {
             timestamp = std::time(nullptr);
             messageLength = content.length();
-            messageHash = nuansa::utils::crypto::GenerateSHA256Hash(content);
+            messageHash = nuansa::utils::crypto::CryptoUtil::GenerateSHA256Hash(content);
         }
     };
 

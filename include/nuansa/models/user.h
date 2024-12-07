@@ -47,7 +47,7 @@ namespace nuansa::models {
 		std::string email;
 		std::string passwordHash;
 		std::string salt;
-		bool isActive;
+		bool isActive{};
 
 		// Database helpers
 		static pqxx::connection CreateConnection();

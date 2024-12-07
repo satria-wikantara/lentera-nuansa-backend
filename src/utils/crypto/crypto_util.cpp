@@ -7,20 +7,20 @@
 
 
 namespace nuansa::utils::crypto {
-    std::string GenerateRandomSalt() {
+    std::string CryptoUtil::GenerateRandomSalt() {
         return GenerateSHA256Hash(std::to_string(std::random_device()()));
     }
 
-    std::string HashPassword(const std::string &password, const std::string &salt) {
+    std::string CryptoUtil::HashPassword(const std::string &password, const std::string &salt) {
         return GenerateSHA256Hash(password + salt);
     }
 
-    std::string GenerateSHA256Hash(const std::string &content) {
+    std::string CryptoUtil::GenerateSHA256Hash(const std::string &content) {
         unsigned char hash[EVP_MAX_MD_SIZE];
         unsigned int hashLen;
 
         // Create a new EVP_MD_CTX
-        std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(
+        const std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(
             EVP_MD_CTX_new(), EVP_MD_CTX_free);
 
         if (!ctx) {

@@ -11,14 +11,21 @@ namespace nuansa::plugin {
 		return instance;
 	}
 
+	// TODO: Implement this
+	void PluginManager::LoadPlugin(std::shared_ptr<IPlugin> plugin) {
+	}
+
+	// TODO: Implement this
+	void PluginManager::UnloadPlugin(const std::string &pluginName) {
+	}
+
 	void PluginManager::HandleMessage(const std::string &sender, const nlohmann::json &message) {
 		LOG_DEBUG << "Plugin manager handling message from " << sender;
 
 		try {
-			std::string pluginName = message["plugin"].get<std::string>();
-			auto it = plugins.find(pluginName);
+			auto pluginName = message["plugin"].get<std::string>();
 
-			if (it != plugins.end()) {
+			if (const auto it = plugins.find(pluginName); it != plugins.end()) {
 				it->second->HandleMessage(sender, message);
 			} else {
 				LOG_WARNING << "Plugin '" << pluginName << "' not found";
@@ -26,5 +33,10 @@ namespace nuansa::plugin {
 		} catch (const std::exception &e) {
 			LOG_ERROR << "Error handling plugin message: " << e.what();
 		}
+	}
+
+	template<typename T>
+	std::shared_ptr<T> PluginManager::GetPlugin(const std::string &name) {
+		return nullptr;
 	}
 }

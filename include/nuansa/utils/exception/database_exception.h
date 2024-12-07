@@ -17,28 +17,28 @@ namespace nuansa::utils::exception {
 		}
 	};
 
-	class DatabaseCreateConnectionException : public DatabaseException {
+	class DatabaseCreateConnectionException final : public DatabaseException {
 	public:
 		explicit DatabaseCreateConnectionException(const std::string &message)
 			: DatabaseException("Database connection creation exception: " + message) {
 		}
 	};
 
-	class DatabaseConnectionPoolInitializationException : public DatabaseException {
+	class DatabaseConnectionPoolInitializationException final : public DatabaseException {
 	public:
 		explicit DatabaseConnectionPoolInitializationException(const std::string &message)
 			: DatabaseException("Database connection pool initialization exception: " + message) {
 		}
 	};
 
-	class DatabaseQueryExecutionException : public DatabaseException {
+	class DatabaseQueryExecutionException final : public DatabaseException {
 	public:
 		explicit DatabaseQueryExecutionException(const std::string &message)
 			: DatabaseException("Database query execution exception: " + message) {
 		}
 	};
 
-	class DatabaseConnectionPoolException : public DatabaseException {
+	class DatabaseConnectionPoolException final : public DatabaseException {
 	public:
 		explicit DatabaseConnectionPoolException(const std::string &message)
 			: DatabaseException("Database connection pool exception: " + message) {

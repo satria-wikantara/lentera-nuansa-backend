@@ -1,10 +1,10 @@
 //
 // Created by I Gede Panca Sutresna on 05/12/24.
 //
-#include "nuansa/utils/validation/validation.h"
+#include "nuansa/utils/validation.h"
 #include "nuansa/utils/crypto/crypto_util.h"
 
-bool nuansa::utils::validation::ValidateUsername(const std::string &username) {
+bool nuansa::utils::Validation::ValidateUsername(const std::string &username) {
 	// Username cannot be empty
 	if (username.empty()) {
 		return false;
@@ -16,12 +16,12 @@ bool nuansa::utils::validation::ValidateUsername(const std::string &username) {
 	}
 
 	// Username can only contain alphanumeric characters and underscores
-	return std::all_of(username.begin(), username.end(), [](char c) {
+	return std::ranges::all_of(username, [](const char c) {
 		return std::isalnum(c) || c == '_';
 	});
 }
 
-bool nuansa::utils::validation::ValidateEmail(const std::string &email) {
+bool nuansa::utils::Validation::ValidateEmail(const std::string &email) {
 	if (email.empty()) {
 		return false;
 	}
@@ -32,7 +32,7 @@ bool nuansa::utils::validation::ValidateEmail(const std::string &email) {
 }
 
 
-bool nuansa::utils::validation::ValidatePassword(const std::string &password) {
+bool nuansa::utils::Validation::ValidatePassword(const std::string &password) {
 	// Password length requirements
 	if (password.empty() || password.length() < 8 || password.length() > 128) {
 		return false;
@@ -44,7 +44,7 @@ bool nuansa::utils::validation::ValidatePassword(const std::string &password) {
 	bool hasDigit = false;
 	bool hasSpecial = false;
 
-	for (char c: password) {
+	for (const char c: password) {
 		if (std::isupper(c)) hasUpper = true;
 		else if (std::islower(c)) hasLower = true;
 		else if (std::isdigit(c)) hasDigit = true;
@@ -53,7 +53,7 @@ bool nuansa::utils::validation::ValidatePassword(const std::string &password) {
 
 	LOG_DEBUG << "Password complexity: " << (hasUpper ? "upper" : "") << (hasLower ? "lower" : "") << (
 		         hasDigit ? "digit" : "") << (hasSpecial ? "special" : "");
-	std::string hashedPassword = nuansa::utils::crypto::HashPassword(password, "");
+	std::string hashedPassword = nuansa::utils::crypto::CryptoUtil::HashPassword(password, "");
 	LOG_DEBUG << "Hashed password: " << hashedPassword;
 
 	return hasUpper && hasLower && hasDigit && hasSpecial;

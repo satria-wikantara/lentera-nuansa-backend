@@ -9,43 +9,45 @@
 namespace nuansa::handler {
     class WebSocketHandler {
     public:
-        explicit WebSocketHandler(std::shared_ptr<WebSocketServer> server);
+        explicit WebSocketHandler(const std::shared_ptr<WebSocketServer> &server);
 
         void HandleSession(std::shared_ptr<websocket::stream<tcp::socket> > ws);
 
-        void SendMessage(std::shared_ptr<WebSocketClient> client, const std::string &message);
+        static void SendMessage(const std::shared_ptr<WebSocketClient> &client, const std::string &message);
 
-        void SendMessage(std::shared_ptr<WebSocketClient> client, const nlohmann::json &jsonMessage);
+        static void SendMessage(std::shared_ptr<WebSocketClient> client, const nlohmann::json &jsonMessage);
 
-        void BroadcastMessage(const std::string &sender, const std::string &message);
+        void BroadcastMessage(const std::string &sender, const std::string &message) const;
 
-        void SendSystemMessage(std::shared_ptr<WebSocketClient> client, const std::string &message);
+        static void SendSystemMessage(const std::shared_ptr<WebSocketClient> &client, const std::string &message);
 
-        void SendAckMessage(std::shared_ptr<WebSocketClient> client, const std::string &messageId, bool success,
-                            const std::string &details = "");
+        static void SendAckMessage(const std::shared_ptr<WebSocketClient> &client, const std::string &messageId,
+                                   bool success,
+                                   const std::string &details = "");
 
-        void SendTypingNotification(const std::string &username, bool isTyping, const std::string &recipient = "");
+        void SendTypingNotification(const std::string &username, bool isTyping,
+                                    const std::string &recipient = "") const;
 
-        void SendOnlineUsersList(std::shared_ptr<WebSocketClient> client);
+        void SendOnlineUsersList(const std::shared_ptr<WebSocketClient> &client) const;
 
-        bool IsUserOnline(const std::string &username);
+        bool IsUserOnline(const std::string &username) const;
 
-        std::size_t GetOnlineUserCount();
+        std::size_t GetOnlineUserCount() const;
 
-        std::vector<std::string> GetOnlineUsers();
+        std::vector<std::string> GetOnlineUsers() const;
 
-        void HandleClientDisconnection(std::shared_ptr<WebSocketClient> client);
+        void HandleClientDisconnection(const std::shared_ptr<WebSocketClient> &client) const;
 
-        void SendErrorMessage(std::shared_ptr<WebSocketClient> client, const std::string &errorMessage,
-                              const std::string &errorCode = "");
+        static void SendErrorMessage(const std::shared_ptr<WebSocketClient> &client, const std::string &errorMessage,
+                                     const std::string &errorCode = "");
 
-        std::vector<std::string> ExtractMentions(const std::string &content);
+        static std::vector<std::string> ExtractMentions(const std::string &content);
 
-        void NotifyMentionedUsers(const nuansa::messages::Message &msg);
+        void NotifyMentionedUsers(const nuansa::messages::Message &msg) const;
 
-        void ValidateMessageFormat(const nlohmann::json &msgData);
+        static void ValidateMessageFormat(const nlohmann::json &msgData);
 
-        void SendAuthRequiredMessage(std::shared_ptr<WebSocketClient> client);
+        static void SendAuthRequiredMessage(const std::shared_ptr<WebSocketClient> &client);
 
     private:
         std::shared_ptr<WebSocketServer> websocketServer;

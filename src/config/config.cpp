@@ -20,14 +20,14 @@ namespace nuansa::config {
         return instance;
     }
 
-    void Config::LoadFromFile(const std::string &configFile) {
-        if (configFile.empty()) {
+    void Config::LoadFromFile(const std::string &configPath) {
+        if (configPath.empty()) {
             std::cerr << "No configuration file provided." << std::endl;
             return;
         }
 
         try {
-            YAML::Node config_ = YAML::LoadFile(configFile);
+            const YAML::Node config_ = YAML::LoadFile(configPath);
 
             LoadServerConfig(config_);
             LoadDatabaseConfig(config_);
@@ -74,8 +74,8 @@ namespace nuansa::config {
             // Load and validate log level
             if (serverConfig["log_level"]) {
                 cfg.logLevel = serverConfig["log_level"].as<std::string>();
-                const std::vector<std::string> validLevels = {"debug", "info", "warn", "error"};
-                if (std::find(validLevels.begin(), validLevels.end(), cfg.logLevel) == validLevels.end()) {
+                if (const std::vector<std::string> validLevels = {"debug", "info", "warn", "error"};
+                    std::ranges::find(validLevels, cfg.logLevel) == validLevels.end()) {
                     throw std::runtime_error("Invalid log level. Must be one of: debug, info, warn, error");
                 }
             } else {
@@ -108,7 +108,7 @@ namespace nuansa::config {
 
             // Load and validate host
             if (dbConfig["host"]) {
-                std::string host = dbConfig["host"].as<std::string>();
+                const auto host = dbConfig["host"].as<std::string>();
                 cfg.host = ResolveEnvironmentVariable(host);
                 if (cfg.host.empty()) {
                     throw std::runtime_error("Database host cannot be empty");
@@ -117,7 +117,7 @@ namespace nuansa::config {
 
             // Load and validate port
             if (dbConfig["port"]) {
-                std::string port = dbConfig["port"].as<std::string>();
+                const auto port = dbConfig["port"].as<std::string>();
                 cfg.port = std::stoi(ResolveEnvironmentVariable(port));
                 if (cfg.port < 1 || cfg.port > 65535) {
                     throw std::runtime_error("Database port must be between 1 and 65535");
@@ -126,7 +126,7 @@ namespace nuansa::config {
 
             // Load and validate database name
             if (dbConfig["name"]) {
-                std::string database_name = dbConfig["name"].as<std::string>();
+                const auto database_name = dbConfig["name"].as<std::string>();
                 cfg.database_name = ResolveEnvironmentVariable(database_name);
                 if (cfg.database_name.empty()) {
                     throw std::runtime_error("Database name cannot be empty");
@@ -135,7 +135,7 @@ namespace nuansa::config {
 
             // Load and validate username
             if (dbConfig["user"]) {
-                std::string username = dbConfig["user"].as<std::string>();
+                const auto username = dbConfig["user"].as<std::string>();
                 cfg.username = ResolveEnvironmentVariable(username);
                 if (cfg.username.empty()) {
                     throw std::runtime_error("Database username cannot be empty");
@@ -144,7 +144,7 @@ namespace nuansa::config {
 
             // Load and validate password
             if (dbConfig["password"]) {
-                std::string password = dbConfig["password"].as<std::string>();
+                const auto password = dbConfig["password"].as<std::string>();
                 cfg.password = ResolveEnvironmentVariable(password);
             }
 
@@ -175,7 +175,7 @@ namespace nuansa::config {
         serverConfig_ = config;
     }
 
-    std::string Config::ResolveEnvironmentVariable(const std::string &value) const {
+    std::string Config::ResolveEnvironmentVariable(const std::string &value) {
         if (value.empty() || value[0] != '$') {
             return value;
         }

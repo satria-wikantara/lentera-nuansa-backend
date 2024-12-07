@@ -10,15 +10,21 @@ namespace nuansa::services::auth {
 	public:
 		AuthService();
 
-		static AuthService& GetInstance();
-		nuansa::messages::AuthResponse Authenticate(const nuansa::messages::AuthRequest& request);
-		bool ValidateToken(const std::string& token);
-		void Logout(const std::string& token);
-		std::optional<std::string> GetUsernameFromToken(const std::string& token);
-		nuansa::messages::AuthResponse Register(const nuansa::messages::RegisterRequest& request);
+		static AuthService &GetInstance();
+
+		nuansa::messages::AuthResponse Authenticate(const nuansa::messages::AuthRequest &request);
+
+		bool ValidateToken(const std::string &token);
+
+		void Logout(const std::string &token);
+
+		std::optional<std::string> GetUsernameFromToken(const std::string &token);
+
+		nuansa::messages::AuthResponse Register(const nuansa::messages::RegisterRequest &request);
 
 	private:
-		std::string GenerateToken(const std::string& username);
+		static std::string GenerateToken(const std::string &username);
+
 		void CleanupExpiredTokens();
 
 		struct TokenInfo {
@@ -27,7 +33,7 @@ namespace nuansa::services::auth {
 		};
 
 		std::unordered_map<std::string, std::string> userCredentials; // username -> password hash
-		std::unordered_map<std::string, TokenInfo> activeTokens;      // token -> TokenInfo
+		std::unordered_map<std::string, TokenInfo> activeTokens; // token -> TokenInfo
 		std::mutex authMutex;
 		std::random_device rd;
 		std::mt19937 gen;

@@ -35,7 +35,7 @@ namespace nuansa::config {
 
 		void LoadDatabaseConfig(const YAML::Node &config);
 
-		std::string ResolveEnvironmentVariable(const std::string &value) const;
+		static std::string ResolveEnvironmentVariable(const std::string &value);
 
 		void LoadEnvironmentFile();
 

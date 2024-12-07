@@ -10,7 +10,7 @@ namespace websocket = beast::websocket;
 namespace http = beast::http;
 
 namespace nuansa::handler {
-    WebSocketHandler::WebSocketHandler(std::shared_ptr<WebSocketServer> server)
+    WebSocketHandler::WebSocketHandler(const std::shared_ptr<WebSocketServer> &server)
         : websocketServer(server) {
     }
 
@@ -94,7 +94,7 @@ namespace nuansa::handler {
         }
     }
 
-    void WebSocketHandler::SendMessage(std::shared_ptr<WebSocketClient> client,
+    void WebSocketHandler::SendMessage(const std::shared_ptr<WebSocketClient> &client,
                                        const std::string &message) {
         if (!client || !client->GetWebSocket()) {
             LOG_ERROR << "Invalid client";
@@ -102,7 +102,7 @@ namespace nuansa::handler {
         }
 
         try {
-            auto ws = client->GetWebSocket();
+            const auto ws = client->GetWebSocket();
             ws->text(true);
             ws->write(net::buffer(message));
         } catch (const std::exception &e) {
@@ -114,10 +114,10 @@ namespace nuansa::handler {
     void WebSocketHandler::SendMessage(std::shared_ptr<WebSocketClient> client, const nlohmann::json &jsonMessage) {
     }
 
-    void WebSocketHandler::SendErrorMessage(std::shared_ptr<WebSocketClient> client,
+    void WebSocketHandler::SendErrorMessage(const std::shared_ptr<WebSocketClient> &client,
                                             const std::string &errorMessage,
                                             const std::string &errorCode) {
-        nlohmann::json errorJson = {
+        const nlohmann::json errorJson = {
             {"type", "error"},
             {"code", errorCode},
             {"message", errorMessage}
@@ -125,18 +125,17 @@ namespace nuansa::handler {
         SendMessage(client, errorJson.dump());
     }
 
-    void WebSocketHandler::HandleClientDisconnection(std::shared_ptr<WebSocketClient> client) {
+    void WebSocketHandler::HandleClientDisconnection(const std::shared_ptr<WebSocketClient> &client) const {
         if (!client) return;
 
         // Find and remove the client from the clients map
-        auto it = websocketServer->clients.find(client->username);
-        if (it != websocketServer->clients.end()) {
+        if (const auto it = websocketServer->clients.find(client->username); it != websocketServer->clients.end()) {
             websocketServer->clients.erase(it);
 
             LOG_INFO << "Client disconnected: " << client->username;
 
             // Broadcast disconnection message
-            nlohmann::json disconnectMsg = {
+            const nlohmann::json disconnectMsg = {
                 {"type", "system"},
                 {"content", client->username + " has disconnected"}
             };
@@ -145,8 +144,8 @@ namespace nuansa::handler {
         }
     }
 
-    void WebSocketHandler::BroadcastMessage(const std::string &sender, const std::string &message) {
-        nlohmann::json broadcastMsg = {
+    void WebSocketHandler::BroadcastMessage(const std::string &sender, const std::string &message) const {
+        const nlohmann::json broadcastMsg = {
             {"type", "broadcast"},
             {"sender", sender},
             {"content", message}
@@ -156,8 +155,7 @@ namespace nuansa::handler {
 
         for (auto &[username, client]: websocketServer->clients) {
             try {
-                auto ws = client.GetWebSocket();
-                if (ws) {
+                if (const auto ws = client.GetWebSocket()) {
                     ws->text(true);
                     ws->write(net::buffer(msgStr));
                     LOG_DEBUG << "Broadcast message sent to " << username;
@@ -168,8 +166,8 @@ namespace nuansa::handler {
         }
     }
 
-    void WebSocketHandler::NotifyMentionedUsers(const nuansa::messages::Message &msg) {
-        nlohmann::json notification = {
+    void WebSocketHandler::NotifyMentionedUsers(const nuansa::messages::Message &msg) const {
+        const nlohmann::json notification = {
             {"type", "mention"},
             {"messageId", msg.id},
             {"sender", msg.sender},
@@ -183,8 +181,7 @@ namespace nuansa::handler {
                 it != websocketServer->clients.end()) {
                 try {
                     auto &client = it->second;
-                    auto ws = client.GetWebSocket();
-                    if (ws) {
+                    if (const auto ws = client.GetWebSocket()) {
                         ws->text(true);
                         ws->write(net::buffer(notification.dump()));
                         LOG_DEBUG << "Notification sent to " << mention;
@@ -214,24 +211,24 @@ namespace nuansa::handler {
         return mentions;
     }
 
-    void WebSocketHandler::SendAuthRequiredMessage(std::shared_ptr<WebSocketClient> client) {
-        nlohmann::json response = {
+    void WebSocketHandler::SendAuthRequiredMessage(const std::shared_ptr<WebSocketClient> &client) {
+        const nlohmann::json response = {
             {"type", nuansa::messages::MessageType::AuthRequired},
             {"message", "Authentication required"}
         };
         SendMessage(client, response.dump());
     }
 
-    void WebSocketHandler::SendSystemMessage(std::shared_ptr<WebSocketClient> client,
+    void WebSocketHandler::SendSystemMessage(const std::shared_ptr<WebSocketClient> &client,
                                              const std::string &message) {
-        nlohmann::json systemMsg = {
+        const nlohmann::json systemMsg = {
             {"type", "system"},
             {"content", message}
         };
         SendMessage(client, systemMsg.dump());
     }
 
-    void WebSocketHandler::SendAckMessage(std::shared_ptr<WebSocketClient> client,
+    void WebSocketHandler::SendAckMessage(const std::shared_ptr<WebSocketClient> &client,
                                           const std::string &messageId,
                                           bool success,
                                           const std::string &details) {
@@ -250,9 +247,8 @@ namespace nuansa::handler {
 
     void WebSocketHandler::ValidateMessageFormat(const nlohmann::json &msgData) {
         // Check required fields based on message type
-        auto type = msgData["type"].get<nuansa::messages::MessageType>();
 
-        switch (type) {
+        switch (msgData["type"].get<nuansa::messages::MessageType>()) {
             case nuansa::messages::MessageType::New:
                 if (!msgData.contains("content")) {
                     throw std::invalid_argument("New message must contain 'content' field");
@@ -282,27 +278,27 @@ namespace nuansa::handler {
         }
     }
 
-    bool WebSocketHandler::IsUserOnline(const std::string &username) {
-        return websocketServer->clients.find(username) != websocketServer->clients.end();
+    bool WebSocketHandler::IsUserOnline(const std::string &username) const {
+        return websocketServer->clients.contains(username);
     }
 
-    std::size_t WebSocketHandler::GetOnlineUserCount() {
+    std::size_t WebSocketHandler::GetOnlineUserCount() const {
         return websocketServer->clients.size();
     }
 
-    std::vector<std::string> WebSocketHandler::GetOnlineUsers() {
+    std::vector<std::string> WebSocketHandler::GetOnlineUsers() const {
         std::vector<std::string> onlineUsers;
         onlineUsers.reserve(websocketServer->clients.size());
 
-        for (const auto &[username, _]: websocketServer->clients) {
+        for (const auto &username: websocketServer->clients | std::views::keys) {
             onlineUsers.push_back(username);
         }
 
         return onlineUsers;
     }
 
-    void WebSocketHandler::SendOnlineUsersList(std::shared_ptr<WebSocketClient> client) {
-        nlohmann::json userListMsg = {
+    void WebSocketHandler::SendOnlineUsersList(const std::shared_ptr<WebSocketClient> &client) const {
+        const nlohmann::json userListMsg = {
             {"type", "userList"},
             {"users", GetOnlineUsers()},
             {"count", GetOnlineUserCount()}
@@ -313,8 +309,8 @@ namespace nuansa::handler {
 
     void WebSocketHandler::SendTypingNotification(const std::string &username,
                                                   bool isTyping,
-                                                  const std::string &recipient) {
-        nlohmann::json typingMsg = {
+                                                  const std::string &recipient) const {
+        const nlohmann::json typingMsg = {
             {"type", "typing"},
             {"username", username},
             {"isTyping", isTyping}
@@ -325,7 +321,7 @@ namespace nuansa::handler {
             BroadcastMessage("system", typingMsg.dump());
         } else {
             // Send to specific recipient
-            if (auto it = websocketServer->clients.find(recipient);
+            if (const auto it = websocketServer->clients.find(recipient);
                 it != websocketServer->clients.end()) {
                 SendMessage(std::make_shared<WebSocketClient>(it->second), typingMsg.dump());
             }

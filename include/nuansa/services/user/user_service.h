@@ -8,7 +8,7 @@
 #include "nuansa/models/user.h"
 
 namespace nuansa::services::user {
-	class UserService : public IUserService {
+	class UserService final : public IUserService {
 	public:
 		// TODO: use config and factory method to initialize circuit breaker
 		UserService()
@@ -46,8 +46,6 @@ namespace nuansa::services::user {
 
 	private:
 		std::shared_ptr<pqxx::connection> fallbackConnection_;
-
-		pqxx::connection CreateConnection() const;
 
 		pqxx::connection *GetConnection() const;
 

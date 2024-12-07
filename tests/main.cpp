@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     // Initialize test database
     // nuansa::tests::utils::InitTestDatabase();
 
-    int testResult = RUN_ALL_TESTS();
+    const int testResult = RUN_ALL_TESTS();
 
 #ifdef LLVM_PROFILE_FILE
     __llvm_profile_dump(); // Dump coverage data before exit

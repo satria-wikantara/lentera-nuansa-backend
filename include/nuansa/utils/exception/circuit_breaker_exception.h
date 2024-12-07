@@ -15,21 +15,21 @@ namespace nuansa::utils::exception {
 		}
 	};
 
-	class CircuitBreakerOpenException : public CircuitBreakerException {
+	class CircuitBreakerOpenException final : public CircuitBreakerException {
 	public:
 		explicit CircuitBreakerOpenException(const std::string &message)
 			: CircuitBreakerException("Circuit Breaker Open: " + message) {
 		}
 	};
 
-	class CircuitBreakerTimeoutException : public CircuitBreakerException {
+	class CircuitBreakerTimeoutException final : public CircuitBreakerException {
 	public:
 		explicit CircuitBreakerTimeoutException(const std::string &message)
 			: CircuitBreakerException("Circuit Breaker Timeout: " + message) {
 		}
 	};
 
-	class CircuitBreakerCloseException : public CircuitBreakerException {
+	class CircuitBreakerCloseException final : public CircuitBreakerException {
 	public:
 		explicit CircuitBreakerCloseException(const std::string &message)
 			: CircuitBreakerException("Circuit Breaker Close: " + message) {

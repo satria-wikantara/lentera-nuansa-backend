@@ -9,7 +9,7 @@
 #include "nuansa/database/db_connection_guard.h"
 #include "nuansa/config/config.h"
 #include "nuansa/utils/crypto/crypto_util.h"
-#include "nuansa/utils/validation/validation.h"
+#include "nuansa/utils/validation.h"
 
 namespace nuansa::services::user {
     UserService &UserService::GetInstance() {
@@ -55,13 +55,13 @@ namespace nuansa::services::user {
 
     std::optional<nuansa::models::User> UserService::GetUserByUsername(const std::string &username) {
         try {
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
 
-            return guard.ExecuteWithRetry([&](pqxx::connection &conn) {
-                pqxx::work txn{conn};
+            return guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
+                pqxx::work txn{db_conn};
 
-                auto result = txn.exec_params(
+                const auto result = txn.exec_params(
                     "SELECT username, email, password_hash, salt FROM users WHERE username = $1",
                     username);
 
@@ -84,11 +84,11 @@ namespace nuansa::services::user {
 
     std::optional<nuansa::models::User> UserService::GetUserByEmail(const std::string &email) {
         try {
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
             pqxx::work txn{*conn};
 
-            auto result = txn.exec_params(
+            const auto result = txn.exec_params(
                 "SELECT username, email, password_hash, salt FROM users WHERE email = $1",
                 email);
 
@@ -110,11 +110,11 @@ namespace nuansa::services::user {
 
     bool UserService::IsEmailTaken(const std::string &email) const {
         try {
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
             pqxx::work txn{*conn};
 
-            auto result = txn.exec_params(
+            const auto result = txn.exec_params(
                 "SELECT 1 FROM users WHERE email = $1",
                 email);
 
@@ -127,11 +127,11 @@ namespace nuansa::services::user {
 
     bool UserService::IsUsernameTaken(const std::string &username) const {
         try {
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
             pqxx::work txn{*conn};
 
-            auto result = txn.exec_params(
+            const auto result = txn.exec_params(
                 "SELECT 1 FROM users WHERE username = $1",
                 username);
 
@@ -142,12 +142,13 @@ namespace nuansa::services::user {
         }
     }
 
+    // TODO: refactor this
     namespace {
         constexpr size_t SALT_LENGTH = 16;
         constexpr size_t HASH_LENGTH = 32;
         constexpr int ITERATIONS = 10000;
 
-        std::string bytesToHex(const unsigned char *data, size_t len) {
+        std::string bytesToHex(const unsigned char *data, const size_t len) {
             std::stringstream ss;
             ss << std::hex << std::setfill('0');
             for (size_t i = 0; i < len; i++) {
@@ -171,7 +172,7 @@ namespace nuansa::services::user {
         // Generate random salt
         std::vector<unsigned char> salt(SALT_LENGTH);
         std::random_device rd;
-        std::generate(salt.begin(), salt.end(), std::ref(rd));
+        std::ranges::generate(salt, std::ref(rd));
 
         // Generate hash
         std::vector<unsigned char> hash(HASH_LENGTH);
@@ -219,8 +220,8 @@ namespace nuansa::services::user {
             }
 
             nuansa::database::ConnectionGuard guard(std::move(conn));
-            guard.ExecuteWithRetry([&](pqxx::connection &conn) {
-                pqxx::work txn(conn);
+            guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
+                pqxx::work txn(db_conn);
                 txn.exec_params(
                     "INSERT INTO users (username, email, password_hash, salt) VALUES ($1, $2, $3, $4)",
                     user.GetUsername(), user.GetEmail(), user.GetPasswordHash(), user.GetSalt());
@@ -240,13 +241,14 @@ namespace nuansa::services::user {
 
     bool UserService::AuthenticateUser(const std::string &username, const std::string &password) {
         try {
-            auto user = GetUserByUsername(username);
+            const auto user = GetUserByUsername(username);
             if (!user) {
                 return false;
             }
 
             // Hash the provided password with the stored salt
-            std::string hashedPassword = nuansa::utils::crypto::HashPassword(password, user->GetSalt());
+            const std::string hashedPassword = nuansa::utils::crypto::CryptoUtil::HashPassword(
+                password, user->GetSalt());
 
             // Compare the hashed password with the stored hash
             return hashedPassword == user->GetPasswordHash();
@@ -258,18 +260,18 @@ namespace nuansa::services::user {
 
     bool UserService::UpdateUserEmail(const std::string &username, const std::string &newEmail) {
         try {
-            if (!nuansa::utils::validation::ValidateEmail(newEmail)) {
+            if (!nuansa::utils::Validation::ValidateEmail(newEmail)) {
                 LOG_ERROR << "Invalid email format";
                 return false;
             }
 
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
 
-            return guard.ExecuteWithRetry([&](pqxx::connection &conn) {
-                pqxx::work txn{conn};
+            return guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
+                pqxx::work txn{db_conn};
 
-                auto result = txn.exec_params(
+                const auto result = txn.exec_params(
                     "UPDATE users SET email = $1 WHERE username = $2",
                     newEmail, username);
 
@@ -290,24 +292,24 @@ namespace nuansa::services::user {
     bool UserService::UpdateUserPassword(const std::string &username, const std::string &newPassword) {
         try {
             // Validate new password
-            if (!nuansa::utils::validation::ValidatePassword(newPassword)) {
+            if (!nuansa::utils::Validation::ValidatePassword(newPassword)) {
                 LOG_WARNING << "Invalid password format";
                 return false;
             }
 
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
 
             // Generate new salt for the new password
-            std::string newSalt = nuansa::utils::crypto::GenerateRandomSalt();
+            std::string newSalt = nuansa::utils::crypto::CryptoUtil::GenerateRandomSalt();
 
             // Hash the new password with the new salt
-            std::string hashedPassword = nuansa::utils::crypto::HashPassword(newPassword, newSalt);
+            std::string hashedPassword = nuansa::utils::crypto::CryptoUtil::HashPassword(newPassword, newSalt);
 
-            return guard.ExecuteWithRetry([&](pqxx::connection &conn) {
-                pqxx::work txn{conn};
+            return guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
+                pqxx::work txn{db_conn};
 
-                auto result = txn.exec_params(
+                const auto result = txn.exec_params(
                     "UPDATE users SET password_hash = $1, salt = $2 WHERE username = $3",
                     hashedPassword, newSalt, username);
 
@@ -327,13 +329,13 @@ namespace nuansa::services::user {
 
     bool UserService::DeleteUser(const std::string &username) {
         try {
-            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
+            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
 
-            return guard.ExecuteWithRetry([&](pqxx::connection &conn) {
-                pqxx::work txn{conn};
+            return guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
+                pqxx::work txn{db_conn};
 
-                auto result = txn.exec_params(
+                const auto result = txn.exec_params(
                     "DELETE FROM users WHERE username = $1",
                     username);
 

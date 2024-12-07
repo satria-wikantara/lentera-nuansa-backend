@@ -13,10 +13,10 @@ namespace nuansa::models {
         : username(username)
           , email(email)
           , passwordHash(passwordHash)
-          , salt(salt) {
+          , salt(salt), isActive(false) {
     }
 
-    std::string User::GenerateSalt(size_t length) {
+    std::string User::GenerateSalt(const size_t length) {
         std::vector<unsigned char> salt(length);
         if (RAND_bytes(salt.data(), length) != 1) {
             throw std::runtime_error("Failed to generate salt");
@@ -30,12 +30,12 @@ namespace nuansa::models {
     }
 
     std::string User::HashPassword(const std::string &password, const std::string &salt) {
-        std::string salted = salt + password;
+        const std::string salted = salt + password;
         unsigned char hash[EVP_MAX_MD_SIZE];
         unsigned int hashLen;
 
         // Create new EVP_MD_CTX
-        std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(
+        const std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(
             EVP_MD_CTX_new(), EVP_MD_CTX_free);
         if (!ctx) {
             throw std::runtime_error("Failed to create hash context");
@@ -67,7 +67,7 @@ namespace nuansa::models {
 
     bool User::VerifyPassword(const std::string &password, const std::string &salt,
                               const std::string &hashedPassword) {
-        std::string newHashedPassword = HashPassword(password, salt);
+        const std::string newHashedPassword = HashPassword(password, salt);
         return hashedPassword == newHashedPassword;
     }
 
@@ -84,7 +84,7 @@ namespace nuansa::models {
     }
 
     bool User::Authenticate(const std::string &username, const std::string &password) {
-        auto user = FindByUsername(username);
+        const auto user = FindByUsername(username);
         if (!user) {
             return false;
         }
@@ -97,7 +97,7 @@ namespace nuansa::models {
             auto conn = CreateConnection();
             pqxx::work txn{conn};
 
-            auto result = txn.exec_params(
+            const auto result = txn.exec_params(
                 "SELECT id, username, email, password_hash FROM users WHERE username = $1",
                 username
             );

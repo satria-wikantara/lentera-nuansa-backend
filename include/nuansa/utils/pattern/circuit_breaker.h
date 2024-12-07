@@ -90,8 +90,8 @@ namespace nuansa::utils::pattern {
 
         template<typename Func>
         auto Execute(Func &&func) ->
-            typename std::enable_if<!std::is_void<decltype(func())>::value,
-                decltype(func())>::type {
+            std::enable_if_t<!std::is_void_v<decltype(func())>,
+                decltype(func())> {
             CheckState();
 
             if (state_ == State::OPEN) {
@@ -104,14 +104,14 @@ namespace nuansa::utils::pattern {
                 return result;
             } catch (const std::exception &e) {
                 RecordFailure();
-                throw;
+                throw utils::exception::CircuitBreakerException(e.what());
             }
         }
 
         template<typename Func>
         auto Execute(Func &&func) ->
-            typename std::enable_if<std::is_void<decltype(func())>::value,
-                void>::type {
+            std::enable_if_t<std::is_void_v<decltype(func())>,
+                void> {
             CheckState();
 
             if (state_ == State::OPEN) {
@@ -123,7 +123,7 @@ namespace nuansa::utils::pattern {
                 RecordSuccess();
             } catch (const std::exception &e) {
                 RecordFailure();
-                throw;
+                throw utils::exception::CircuitBreakerException(e.what());
             }
         }
 
@@ -131,8 +131,8 @@ namespace nuansa::utils::pattern {
             std::lock_guard<std::mutex> lock(mutex_);
 
             if (state_ == State::OPEN) {
-                auto elapsed = std::chrono::steady_clock::now() - lastFailureTime_;
-                if (elapsed >= settings_.resetTimeout) {
+                if (const auto elapsed = std::chrono::steady_clock::now() - lastFailureTime_;
+                    elapsed >= settings_.resetTimeout) {
                     state_ = State::HALF_OPEN;
                     failureCount_ = 0;
                     successCount_ = 0;
@@ -191,7 +191,7 @@ namespace nuansa::utils::pattern {
             return future.get();
         }
 
-        void UpdateMetrics(std::chrono::milliseconds responseTime, bool success) {
+        void UpdateMetrics(const std::chrono::milliseconds responseTime, const bool success) {
             std::lock_guard<std::mutex> lock(mutex_);
 
             metrics_.totalCalls++;
@@ -202,7 +202,7 @@ namespace nuansa::utils::pattern {
             }
 
             // Update average response time
-            auto total = metrics_.averageResponseTime * (metrics_.totalCalls - 1);
+            const auto total = metrics_.averageResponseTime * (metrics_.totalCalls - 1);
             metrics_.averageResponseTime = (total + responseTime) / metrics_.totalCalls;
         }
 

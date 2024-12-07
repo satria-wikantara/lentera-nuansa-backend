@@ -18,56 +18,56 @@ namespace nuansa::utils::exception {
 		}
 	};
 
-	class WebSocketAcceptException : public WebSocketException {
+	class WebSocketAcceptException final : public WebSocketException {
 	public:
 		explicit WebSocketAcceptException(const std::string &message)
 			: WebSocketException("WebSocket accept error:" + message) {
 		}
 	};
 
-	class WebSocketHandshakeException : public WebSocketException {
+	class WebSocketHandshakeException final : public WebSocketException {
 	public:
 		explicit WebSocketHandshakeException(const std::string &message)
 			: WebSocketException("WebSocket handshake error:" + message) {
 		}
 	};
 
-	class WebSocketReadException : public WebSocketException {
+	class WebSocketReadException final : public WebSocketException {
 	public:
 		explicit WebSocketReadException(const std::string &message)
 			: WebSocketException("WebSocket read error:" + message) {
 		}
 	};
 
-	class WebSocketWriteException : public WebSocketException {
+	class WebSocketWriteException final : public WebSocketException {
 	public:
 		explicit WebSocketWriteException(const std::string &message)
 			: WebSocketException("WebSocket write error:" + message) {
 		}
 	};
 
-	class WebSocketCloseException : public WebSocketException {
+	class WebSocketCloseException final : public WebSocketException {
 	public:
 		explicit WebSocketCloseException(const std::string &message)
 			: WebSocketException("WebSocket close error:" + message) {
 		}
 	};
 
-	class WebSocketFrameException : public WebSocketException {
+	class WebSocketFrameException final : public WebSocketException {
 	public:
 		explicit WebSocketFrameException(const std::string &message)
 			: WebSocketException("WebSocket frame error:" + message) {
 		}
 	};
 
-	class WebSocketHandshakeTimeoutException : public WebSocketException {
+	class WebSocketHandshakeTimeoutException final : public WebSocketException {
 	public:
 		explicit WebSocketHandshakeTimeoutException(const std::string &message)
 			: WebSocketException("WebSocket handshake timeout:" + message) {
 		}
 	};
 
-	class WebSocketConnectionException : public WebSocketException {
+	class WebSocketConnectionException final : public WebSocketException {
 	public:
 		explicit WebSocketConnectionException(const std::string &message)
 			: WebSocketException("WebSocket connection error:" + message) {

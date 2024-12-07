@@ -11,13 +11,13 @@
 namespace nuansa::core {
 	bool CheckForRootUser();
 
-	bool Initialize(const std::string &configPath);
+	void Initialize(const std::string &configPath);
 
-	bool InitializeConfig(const std::string &configPath);
+	void InitializeConfig(const std::string &configPath);
 
-	bool InitializeLogging();
+	void InitializeLogging();
 
-	bool InitializeDatabase();
+	void InitializeDatabase();
 
 	void Run(const nuansa::utils::ProgramOptions &options);
 } // namespace App
