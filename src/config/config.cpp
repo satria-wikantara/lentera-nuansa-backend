@@ -4,7 +4,7 @@
 #include "nuansa/pch/pch.h"
 
 #include "nuansa/config/config.h"
-#include "nuansa/utils/patterns/circuit_breaker.h"
+#include "nuansa/utils/pattern/circuit_breaker.h"
 
 
 namespace nuansa::config {

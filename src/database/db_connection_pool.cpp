@@ -1,7 +1,7 @@
 #include "nuansa/pch/pch.h"
 
 #include "nuansa/database/db_connection_pool.h"
-#include "nuansa/utils/errors/database_error.h"
+#include "nuansa/utils/exception/database_exception.h"
 
 namespace nuansa::database {
     ConnectionPool &ConnectionPool::GetInstance() {
@@ -22,7 +22,7 @@ namespace nuansa::database {
         activeConnections_ = 0;
 
         // Initialize circuit breaker
-        circuitBreaker_.Initialize(utils::patterns::CircuitBreakerSettings{
+        circuitBreaker_.Initialize(utils::pattern::CircuitBreakerSettings{
             .failureThreshold = 5,
             .successThreshold = 2,
             .resetTimeout = std::chrono::seconds(30),
@@ -54,7 +54,7 @@ namespace nuansa::database {
         if (initializationFailed || connections_.empty()) {
             LOG_ERROR << "Shutting down connection pool due to initialization failure";
             Shutdown();
-            throw nuansa::utils::errors::DatabaseCreateConnectionException(
+            throw nuansa::utils::exception::DatabaseCreateConnectionException(
                 "Failed to initialize connection pool: " + errorMessage
             );
         }
@@ -82,7 +82,7 @@ namespace nuansa::database {
             return std::make_shared<pqxx::connection>(connectionString_);
         } catch (const std::exception &e) {
             LOG_ERROR << "Unexpected error creating database connection: " << e.what();
-            throw nuansa::utils::errors::DatabaseCreateConnectionException(e.what());
+            throw nuansa::utils::exception::DatabaseCreateConnectionException(e.what());
         }
     }
 
@@ -202,7 +202,7 @@ namespace nuansa::database {
             return conn;
         } catch (const std::exception &e) {
             LOG_ERROR << "Failed to create fallback connection: " << e.what();
-            throw nuansa::utils::errors::DatabaseCreateConnectionException(
+            throw nuansa::utils::exception::DatabaseCreateConnectionException(
                 "No fallback connection available: " + std::string(e.what())
             );
         }

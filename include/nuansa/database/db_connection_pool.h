@@ -2,8 +2,8 @@
 #define NUANSA_DATABASE_DB_CONNECTION_POOL_H
 
 #include "nuansa/pch/pch.h"
-#include "nuansa/utils/patterns/circuit_breaker.h"
-#include "nuansa/utils/errors/database_error.h"
+#include "nuansa/utils/pattern/circuit_breaker.h"
+#include "nuansa/utils/exception/database_exception.h"
 
 namespace nuansa::database {
     class ConnectionPool {
@@ -15,7 +15,6 @@ namespace nuansa::database {
             double backoffMultiplier = 2.0;
         };
 
-        RetryConfig &GetRetryConfig() { return retryConfig_; }
         const RetryConfig &GetRetryConfig() const { return retryConfig_; }
 
         static ConnectionPool &GetInstance();
@@ -35,7 +34,7 @@ namespace nuansa::database {
         bool IsInitialized() const;
 
         // Add circuit breaker configuration
-        utils::patterns::CircuitBreaker &GetCircuitBreaker() { return circuitBreaker_; }
+        utils::pattern::CircuitBreaker &GetCircuitBreaker() { return circuitBreaker_; }
 
         ConnectionPool(const ConnectionPool &) = delete;
 
@@ -59,7 +58,7 @@ namespace nuansa::database {
         bool initialized_ = false;
         RetryConfig retryConfig_;
 
-        utils::patterns::CircuitBreaker circuitBreaker_;
+        utils::pattern::CircuitBreaker circuitBreaker_;
 
         std::shared_ptr<pqxx::connection> CreateConnection();
 

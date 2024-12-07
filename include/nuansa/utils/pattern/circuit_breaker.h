@@ -1,10 +1,10 @@
-#ifndef NUANSA_UTILS_PATTERNS_CIRCUIT_BREAKER_H
-#define NUANSA_UTILS_PATTERNS_CIRCUIT_BREAKER_H
+#ifndef NUANSA_UTILS_PATTERN_CIRCUIT_BREAKER_H
+#define NUANSA_UTILS_PATTERN_CIRCUIT_BREAKER_H
 
 #include "nuansa/pch/pch.h"
-#include "nuansa/utils/errors/circuit_breaker_error.h"
+#include "nuansa/utils/exception/circuit_breaker_exception.h"
 
-namespace nuansa::utils::patterns {
+namespace nuansa::utils::pattern {
     struct CircuitBreakerSettings {
         size_t failureThreshold{5}; // Number of failures before opening the circuit.
         size_t successThreshold{2}; // Number of consecutive successes to close the circuit breaker.
@@ -95,7 +95,7 @@ namespace nuansa::utils::patterns {
             CheckState();
 
             if (state_ == State::OPEN) {
-                throw utils::errors::CircuitBreakerOpenError("Circuit breaker is OPEN");
+                throw utils::exception::CircuitBreakerOpenException("Circuit breaker is OPEN");
             }
 
             try {
@@ -115,7 +115,7 @@ namespace nuansa::utils::patterns {
             CheckState();
 
             if (state_ == State::OPEN) {
-                throw utils::errors::CircuitBreakerOpenError("Circuit breaker is OPEN");
+                throw utils::exception::CircuitBreakerOpenException("Circuit breaker is OPEN");
             }
 
             try {
@@ -184,7 +184,7 @@ namespace nuansa::utils::patterns {
             // Wait for the function to finish or timeout
             if (future.wait_for(settings_.timeout) == std::future_status::timeout) {
                 worker.detach();
-                throw utils::errors::CircuitBreakerTimeoutError("Operation timed out");
+                throw utils::exception::CircuitBreakerTimeoutException("Operation timed out");
             }
 
             worker.join();
@@ -219,4 +219,4 @@ namespace nuansa::utils::patterns {
     };
 }
 
-#endif // NUANSA_UTILS_PATTERNS_CIRCUIT_BREAKER_H
+#endif // NUANSA_UTILS_PATTERN_CIRCUIT_BREAKER_H

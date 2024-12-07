@@ -3,7 +3,7 @@
 
 #include "nuansa/pch/pch.h"
 #include "nuansa/database/db_connection_pool.h"
-#include "nuansa/utils/errors/database_error.h"
+#include "nuansa/utils/exception/database_exception.h"
 
 namespace nuansa::database {
     // RAII wrapper for connection handling with retry support
@@ -39,11 +39,11 @@ namespace nuansa::database {
                     }
                     result = func(*conn_);
                 } catch (const pqxx::broken_connection &e) {
-                    throw utils::errors::DatabaseBrokenConnectionException(e.what());
+                    throw utils::exception::DatabaseBrokenConnectionException(e.what());
                 } catch (const std::exception &e) {
                     if (attempt + 1 == maxRetries || !IsTransientError(e)) {
                         LOG_ERROR << "Database operation failed after " << (attempt + 1) << " attempts: " << e.what();
-                        throw utils::errors::NonTransientDatabaseException(e.what());
+                        throw utils::exception::NonTransientDatabaseException(e.what());
                     }
 
                     // Only for transient errors:
@@ -64,7 +64,7 @@ namespace nuansa::database {
                 // Loop will continue to next iteration for transient errors
             }
 
-            throw utils::errors::Exception("Unexpected error in ExecuteWithRetry");
+            throw utils::exception::Exception("Unexpected error in ExecuteWithRetry");
         }
 
         static bool IsTransientError(const std::exception &e) {

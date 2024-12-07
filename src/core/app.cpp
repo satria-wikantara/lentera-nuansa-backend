@@ -6,7 +6,7 @@
 #include "nuansa/utils/program_options.h"
 #include "nuansa/config/config.h"
 #include "nuansa/database/db_connection_pool.h"
-#include "nuansa/utils/errors/database_error.h"
+#include "nuansa/utils/exception/database_exception.h"
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -75,7 +75,7 @@ namespace nuansa::core {
                 config.GetDatabaseConfig().connection_string,
                 config.GetDatabaseConfig().pool_size
             );
-        } catch (const nuansa::utils::errors::DatabaseCreateConnectionException &e) {
+        } catch (const nuansa::utils::exception::DatabaseCreateConnectionException &e) {
             std::cerr << "Database connection pool initialization error: " << e.what() << std::endl;
             return false;
         }

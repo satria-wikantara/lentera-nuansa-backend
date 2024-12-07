@@ -99,8 +99,11 @@ add_library(${PROJECT_NAME}_lib STATIC ${SOURCES}
         include/nuansa/handler/websocket_state_machine.h
         include/nuansa/handler/websocket_state_machine.h
         include/nuansa/utils/log/log.h
-        include/nuansa/utils/errors/exception.h
-        include/nuansa/database/db_connection_guard.h)
+        include/nuansa/utils/exception/exception.h
+        include/nuansa/database/db_connection_guard.h
+        include/nuansa/utils/exception/websocket_exception.h
+        include/nuansa/utils/exception/circuit_breaker_exception.h
+        include/nuansa/utils/exception/database_exception.h)
 target_include_directories(${PROJECT_NAME}_lib
         PUBLIC ${CMAKE_SOURCE_DIR}/include
         PRIVATE

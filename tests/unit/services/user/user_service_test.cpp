@@ -7,7 +7,7 @@
 #include "nuansa/services/user/user_service.h"
 #include "nuansa/database/db_connection_pool.h"
 #include "nuansa/config/config.h"
-#include "nuansa/utils/errors/database_error.h"
+#include "nuansa/utils/exception/database_error.h"
 #include "nuansa/utils/patterns/circuit_breaker.h"
 #include "nuansa/utils/crypto/crypto_util.h"
 #include "nuansa/utils/validation/validation.h"

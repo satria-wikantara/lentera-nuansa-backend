@@ -2,11 +2,11 @@
 // Created by I Gede Panca Sutresna on 07/12/24.
 //
 
-#ifndef NUANSA_UTILS_ERROR_EXCEPTION_H
-#define NUANSA_UTILS_ERROR_EXCEPTION_H
+#ifndef NUANSA_UTILS_EXCEPTION_EXCEPTION_H
+#define NUANSA_UTILS_EXCEPTION_EXCEPTION_H
 #include <string>
 
-namespace nuansa::utils::errors {
+namespace nuansa::utils::exception {
 	class Exception : public std::exception {
 	private:
 		std::string message_;
@@ -22,4 +22,4 @@ namespace nuansa::utils::errors {
 	};
 }
 
-#endif //NUANSA_UTILS_ERROR_EXCEPTION_H
+#endif //NUANSA_UTILS_EXCEPTION_EXCEPTION_H

@@ -2,16 +2,15 @@
 // Created by I Gede Panca Sutresna on 01/12/24.
 //
 
-#ifndef NUANSA_UTILS_ERRORS_DATABASE_ERROR_H
-#define NUANSA_UTILS_ERRORS_DATABASE_ERROR_H
+#ifndef NUANSA_UTILS_EXCEPTION_DATABASE_EXCEPTION_H
+#define NUANSA_UTILS_EXCEPTION_DATABASE_EXCEPTION_H
 
 #include <string>
 
-#include "nuansa/pch/pch.h"
-#include "nuansa/utils/errors/exception.h"
+#include "nuansa/utils/exception/exception.h"
 
-namespace nuansa::utils::errors {
-	class DatabaseException : public nuansa::utils::errors::Exception {
+namespace nuansa::utils::exception {
+	class DatabaseException : public nuansa::utils::exception::Exception {
 	public:
 		explicit DatabaseException(const std::string &message)
 			: Exception(message) {
@@ -61,4 +60,4 @@ namespace nuansa::utils::errors {
 	};
 }
 
-#endif //NUANSA_UTILS_ERRORS_DATABASE_ERROR_H
+#endif //NUANSA_UTILS_EXCEPTION_DATABASE_EXCEPTION_H
