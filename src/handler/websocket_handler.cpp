@@ -110,6 +110,10 @@ namespace nuansa::handler {
         }
     }
 
+    // TODO: Implement this
+    void WebSocketHandler::SendMessage(std::shared_ptr<WebSocketClient> client, const nlohmann::json &jsonMessage) {
+    }
+
     void WebSocketHandler::SendErrorMessage(std::shared_ptr<WebSocketClient> client,
                                             const std::string &errorMessage,
                                             const std::string &errorCode) {
