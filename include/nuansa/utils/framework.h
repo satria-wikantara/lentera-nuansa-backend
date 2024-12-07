@@ -1,5 +1,5 @@
-#ifndef NUANSA_PCH_FRAMEWORK_H
-#define NUANSA_PCH_FRAMEWORK_H
+#ifndef NUANSA_UTILS_FRAMEWORK_H
+#define NUANSA_UTILS_FRAMEWORK_H
 
 #ifdef _WIN32
     #include <Windows.h>
@@ -12,4 +12,4 @@
 #endif
 
 
-#endif /* NUANSA_PCH_FRAMEWORK_H */
+#endif /* NUANSA_UTILS_FRAMEWORK_H */

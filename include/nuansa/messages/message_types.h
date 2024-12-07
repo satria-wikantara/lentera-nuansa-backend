@@ -1,7 +1,7 @@
 #ifndef NUANSA_MESSAGES_MESSAGE_TYPES_H
 #define NUANSA_MESSAGES_MESSAGE_TYPES_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/utils/crypto/crypto_util.h"
 
 namespace beast = boost::beast;
@@ -101,7 +101,7 @@ namespace nuansa::messages {
         std::string password;
     };
 
-    struct RegisterResponse {
+    struct RegisterResponse : public MessageHeader {
         // TODO: Add headers to the response, that contain version, timestamp, message_length and message_hash
         std::string type;
         bool success;

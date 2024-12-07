@@ -7,7 +7,7 @@
 
 #include <stdexcept>
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/utils/exception/exception.h"
 
 namespace nuansa::utils::exception {

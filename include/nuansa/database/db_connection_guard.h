@@ -1,7 +1,7 @@
 #ifndef NUANSA_DATABASE_DB_CONNECTION_GUARD_H
 #define NUANSA_DATABASE_DB_CONNECTION_GUARD_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/database/db_connection_pool.h"
 #include "nuansa/utils/exception/database_exception.h"
 

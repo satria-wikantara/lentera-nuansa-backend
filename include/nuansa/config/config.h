@@ -1,7 +1,7 @@
 #ifndef NUANSA_CONFIG_CONFIG_H
 #define NUANSA_CONFIG_CONFIG_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 #include "nuansa/config/config_types.h"
 

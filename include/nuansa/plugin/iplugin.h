@@ -1,7 +1,7 @@
 #ifndef NUANSA_PLUGIN_IPLUGIN_H
 #define NUANSA_PLUGIN_IPLUGIN_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 namespace nuansa::plugin {
 	class IPlugin {
@@ -11,14 +11,17 @@ namespace nuansa::plugin {
 
 		// Core plugin lifecycle methods
 		virtual void OnLoad() = 0;
+
 		virtual void OnUnload() = 0;
 
 		// Message handling
-		virtual void HandleMessage(const std::string& sender, const nlohmann::json& message) = 0;
+		virtual void HandleMessage(const std::string &sender, const nlohmann::json &message) = 0;
 
 		// Plugin metadata
 		virtual std::string GetName() const = 0;
+
 		virtual std::string GetVersion() const = 0;
+
 		virtual std::string GetDescription() const = 0;
 	};
 }

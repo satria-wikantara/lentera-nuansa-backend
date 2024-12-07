@@ -4,7 +4,7 @@
 #ifndef DB_TEST_H
 #define DB_TEST_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/database/db_connection_pool.h"
 
 namespace nuansa::tests::utils {

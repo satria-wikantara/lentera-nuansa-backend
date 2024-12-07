@@ -1,7 +1,7 @@
 #ifndef NUANSA_SERVICES_USER_IUSER_SERVICE_H
 #define NUANSA_SERVICES_USER_IUSER_SERVICE_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 #include "nuansa/models/user.h"
 

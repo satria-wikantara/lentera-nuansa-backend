@@ -1,7 +1,7 @@
 #ifndef NUANSA_MODELS_USER_H
 #define NUANSA_MODELS_USER_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 namespace nuansa::models {
 	class User {

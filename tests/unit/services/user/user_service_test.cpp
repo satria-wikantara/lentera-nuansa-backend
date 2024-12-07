@@ -1,7 +1,7 @@
 //
 // Created by I Gede Panca Sutresna on 01/12/24.
 //
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 #include <gtest/gtest.h>
 #include "nuansa/services/user/user_service.h"

@@ -1,7 +1,7 @@
 #ifndef NUANSA_UTILS_PATTERN_CIRCUIT_BREAKER_H
 #define NUANSA_UTILS_PATTERN_CIRCUIT_BREAKER_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/utils/exception/circuit_breaker_exception.h"
 
 namespace nuansa::utils::pattern {

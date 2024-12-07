@@ -2,10 +2,10 @@
 // Created by I Gede Panca Sutresna on 01/12/24.
 //
 
-#ifndef NUANSA_PCH_H
-#define NUANSA_PCH_H
+#ifndef NUANSA_UTILS_PCH_H
+#define NUANSA_UTILS_PCH_H
 
-#include "nuansa/pch/framework.h"
+#include "nuansa/utils/framework.h"
 
 // C++ Standard Library
 #include <string>
@@ -59,4 +59,4 @@
 #include "nuansa/utils/log/log.h"
 
 
-#endif //NUANSA_PCH_H
+#endif //NUANSA_UTILS_PCH_H

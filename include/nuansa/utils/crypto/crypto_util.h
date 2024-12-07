@@ -5,7 +5,7 @@
 #ifndef NUANSA_CRYPTO_UTIL_H
 #define NUANSA_CRYPTO_UTIL_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 namespace nuansa::utils::crypto {
 	class CryptoUtil {

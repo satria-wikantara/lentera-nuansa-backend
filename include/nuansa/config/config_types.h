@@ -7,8 +7,6 @@
 
 #include <cstdint>
 
-#include "nuansa/pch/pch.h"
-
 namespace nuansa::config {
 	struct ServerConfig {
 		uint16_t port;

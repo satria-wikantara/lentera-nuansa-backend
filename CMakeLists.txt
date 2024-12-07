@@ -116,11 +116,11 @@ target_include_directories(${PROJECT_NAME}_lib
 )
 
 # Precompiled Headers
-target_precompile_headers(${PROJECT_NAME}_lib PRIVATE include/nuansa/pch/pch.h)
+target_precompile_headers(${PROJECT_NAME}_lib PRIVATE include/nuansa/utils/pch.h)
 if (MSVC)
-    target_precompile_headers(${PROJECT_NAME}_lib PUBLIC ${CMAKE_SOURCE_DIR}/include/nuansa/pch/pch.h)
+    target_precompile_headers(${PROJECT_NAME}_lib PUBLIC ${CMAKE_SOURCE_DIR}/include/nuansa/utils/pch.h)
 else ()
-    target_precompile_headers(${PROJECT_NAME}_lib PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SOURCE_DIR}/include/nuansa/pch/pch.h>")
+    target_precompile_headers(${PROJECT_NAME}_lib PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SOURCE_DIR}/include/nuansa/utils/pch.h>")
 endif ()
 
 # Library Dependencies

@@ -1,7 +1,7 @@
 #ifndef NUANSA_SERVICES_AUTH_AUTH_SERVICE_H
 #define NUANSA_SERVICES_AUTH_AUTH_SERVICE_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 
 #include "nuansa/messages/message_types.h"
 

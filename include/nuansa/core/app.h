@@ -5,7 +5,7 @@
 #ifndef NUANSA_CORE_APP_H
 #define NUANSA_CORE_APP_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/utils/program_options.h"
 
 namespace nuansa::core {

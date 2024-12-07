@@ -1,7 +1,7 @@
 #ifndef NUANSA_PLUGIN_PLUGIN_MANAGER_H
 #define NUANSA_PLUGIN_PLUGIN_MANAGER_H
 
-#include "nuansa/pch/pch.h"
+#include "nuansa/utils/pch.h"
 #include "nuansa/plugin/iplugin.h"
 
 namespace nuansa::plugin {
