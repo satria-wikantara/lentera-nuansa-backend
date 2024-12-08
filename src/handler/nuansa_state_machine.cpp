@@ -12,6 +12,7 @@
 #include "nuansa/messages/message_types.h"
 
 using namespace nuansa::messages;
+using namespace nuansa::utils::common;
 
 namespace nuansa::handler {
     WebSocketStateMachine::WebSocketStateMachine(
@@ -24,7 +25,7 @@ namespace nuansa::handler {
 
     void WebSocketStateMachine::ProcessMessage(const nlohmann::json &msgData) {
         try {
-            auto type = msgData["header"]["messageType"].get<std::string>();
+            auto type = msgData[MESSAGE_HEADER][MESSAGE_HEADER_MESSAGE_TYPE].get<std::string>();
 
             LOG_DEBUG << "Message Type: " << type;
 
@@ -61,7 +62,7 @@ namespace nuansa::handler {
 
     void WebSocketStateMachine::HandleAuthMessage(const nlohmann::json &msgData) {
         LOG_DEBUG << "WebSocketStateMachine::HandleAuthMessage";
-        if (const auto type = msgData["header"]["messageType"].get<nuansa::messages::MessageType>();
+        if (const auto type = msgData[MESSAGE_HEADER][MESSAGE_HEADER_MESSAGE_TYPE].get<nuansa::messages::MessageType>();
             type == nuansa::messages::MessageType::Register) {
             HandleRegistration(msgData);
             TransitionTo(ClientState::AwaitingAuth);
@@ -79,14 +80,14 @@ namespace nuansa::handler {
         try {
             LOG_DEBUG << "Getting message header";
             // Extract header from the nested structure
-            auto messageHeader = nuansa::messages::MessageHeader::FromJson(msgData["header"]);
+            auto messageHeader = nuansa::messages::MessageHeader::FromJson(msgData[MESSAGE_HEADER]);
 
             LOG_DEBUG << "Done Getting message header";
 
             // Extract data from the nested structure
-            auto username = msgData["payload"]["username"].get<std::string>();
-            auto email = msgData["payload"]["email"].get<std::string>();
-            auto password = msgData["payload"]["password"].get<std::string>();
+            auto username = msgData[MESSAGE_BODY]["username"].get<std::string>();
+            auto email = msgData[MESSAGE_BODY]["email"].get<std::string>();
+            auto password = msgData[MESSAGE_BODY]["password"].get<std::string>();
 
             LOG_DEBUG << "Processing registration request for user: " << username;
 
@@ -105,16 +106,16 @@ namespace nuansa::handler {
             // Prepare response JSON with similar structure
             nlohmann::json response = {
                 {
-                    "header", {
-                        {"version", "1.0"},
-                        {"messageType", "register"},
-                        {"messageId", messageHeader.messageId},
-                        {"correlationId", messageHeader.correlationId},
-                        {"timestamp", std::time(nullptr)}
+                    MESSAGE_HEADER, {
+                        {MESSAGE_HEADER_VERSION, "1.0"},
+                        {MESSAGE_HEADER_MESSAGE_TYPE, "register"},
+                        {MESSAGE_HEADER_MESSAGE_ID, messageHeader.messageId},
+                        {MESSAGE_HEADER_CORRELATION_ID, messageHeader.correlationId},
+                        {MESSAGE_HEADER_TIMESTAMP, std::time(nullptr)}
                     }
                 },
                 {
-                    "payload", {
+                    MESSAGE_BODY, {
                         {"success", success},
                         {"message", message},
                         {"token", token} // Include token if registration successful
@@ -133,14 +134,14 @@ namespace nuansa::handler {
 
             nlohmann::json errorResponse = {
                 {
-                    "header", {
-                        {"version", "1.0"},
-                        {"messageType", "register"},
-                        {"timestamp", std::time(nullptr)}
+                    MESSAGE_HEADER, {
+                        {MESSAGE_HEADER_VERSION, "1.0"},
+                        {MESSAGE_HEADER_MESSAGE_TYPE, "register"},
+                        {MESSAGE_HEADER_TIMESTAMP, std::time(nullptr)}
                     }
                 },
                 {
-                    "payload", {
+                    MESSAGE_BODY, {
                         {"success", false},
                         {"message", "Internal server error during registration"}
                     }

@@ -9,6 +9,8 @@
 #include "nuansa/utils/exception/message_exception.h"
 #include "nuansa/messages/base_message.h"
 
+using namespace nuansa::utils::common;
+
 namespace nuansa::services::auth {
 	struct RegisterRequest final : public nuansa::messages::BaseMessage {
 		RegisterRequest() : messageHeader_(messages::MessageHeader()) {
@@ -45,7 +47,7 @@ namespace nuansa::services::auth {
 		static RegisterRequest FromJson(nlohmann::json &json) {
 			try {
 				RegisterRequest request;
-				request.messageHeader_ = messages::MessageHeader::FromJson(json["header"]);
+				request.messageHeader_ = messages::MessageHeader::FromJson(json[MESSAGE_HEADER]);
 				request.username_ = json["username"].get<std::string>();
 				request.email_ = json["email"].get<std::string>();
 				request.password_ = json["password"].get<std::string>();

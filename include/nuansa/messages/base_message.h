@@ -8,12 +8,14 @@
 #include "nuansa/utils/pch.h"
 #include "nuansa/utils/crypto/crypto_util.h"
 
+using namespace nuansa::utils::common;
+
 namespace nuansa::messages {
     struct MessageHeader {
         std::string version{"1.0"}; // Version of the message format
         std::string messageId; // Unique identifier for the message
         std::string sender;
-        std::time_t timestamp; // Timestamp of the message
+        std::time_t timestamp; // Timestamp of the message received on the server
         std::string messageType; // Type/category of the message
         std::string correlationId; // ID to correlate request/response pairs
         int priority{0}; // Message priority level
@@ -52,18 +54,18 @@ namespace nuansa::messages {
         // Convert JSON to MessageHeader
         static MessageHeader FromJson(const nlohmann::json &json) {
             MessageHeader header;
-            header.version = json.value("version", std::string{});
-            header.messageId = json.value("messageId", std::string{});
-            header.sender = json.value("sender", std::string{});
-            header.timestamp = json.value("timestamp", std::time_t{});
-            header.messageType = json.value("messageType", std::string{});
-            header.correlationId = json.value("correlationId", std::string{});
-            header.priority = json.value("priority", 0);
-            header.contentType = json.value("contentType", std::string{"application/json"});
-            header.encoding = json.value("encoding", std::string{"UTF-8"});
-            header.messageLength = json.value("messageLength", 0);
-            header.messageHash = json.value("messageHash", std::string{});
-            header.customHeaders = json.value("customHeaders", std::map<std::string, std::string>{});
+            header.version = json.value(MESSAGE_HEADER_VERSION, std::string{});
+            header.messageId = json.value(MESSAGE_HEADER_MESSAGE_ID, std::string{});
+            header.sender = json.value(MESSAGE_HEADER_SENDER, std::string{});
+            header.timestamp = json.value(MESSAGE_HEADER_TIMESTAMP, std::time_t{});
+            header.messageType = json.value(MESSAGE_HEADER_MESSAGE_TYPE, std::string{});
+            header.correlationId = json.value(MESSAGE_HEADER_CORRELATION_ID, std::string{});
+            header.priority = json.value(MESSAGE_HEADER_PRIORITY, 0);
+            header.contentType = json.value(MESSAGE_HEADER_CONTENT_TYPE, std::string{"application/json"});
+            header.encoding = json.value(MESSAGE_HEADER_ENCODING, std::string{"UTF-8"});
+            header.messageLength = json.value(MESSAGE_HEADER_CONTENT_LENGTH, 0);
+            header.messageHash = json.value(MESSAGE_HEADER_HASH, std::string{});
+            header.customHeaders = json.value(MESSAGE_HEADER_CUSTOM_HEADERS, std::map<std::string, std::string>{});
 
             return header;
         }

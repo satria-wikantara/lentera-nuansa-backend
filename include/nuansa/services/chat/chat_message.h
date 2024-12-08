@@ -9,6 +9,8 @@
 #include "nuansa/utils/exception/message_exception.h"
 #include "nuansa/messages/base_message.h"
 
+using namespace nuansa::utils::common;
+
 namespace nuansa::services::chat {
 	struct ChatRequest final : public nuansa::messages::BaseMessage {
 		ChatRequest() : header_(messages::MessageHeader()) {
@@ -57,7 +59,7 @@ namespace nuansa::services::chat {
 		static ChatRequest FromJson(const nlohmann::json &json) {
 			try {
 				ChatRequest request;
-				request.header_ = messages::MessageHeader::FromJson(json["header"]);
+				request.header_ = messages::MessageHeader::FromJson(json[MESSAGE_HEADER]);
 				request.text_ = json["text"].get<std::string>();
 				request.mentions_ = json["mentions"].get<std::vector<std::string> >();
 				request.edited_ = json["edited"].get<bool>();
