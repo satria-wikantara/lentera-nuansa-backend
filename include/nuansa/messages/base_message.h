@@ -77,9 +77,11 @@ namespace nuansa::messages {
     };
 
     struct BaseMessage {
+        virtual ~BaseMessage() = default;
+
         [[nodiscard]] virtual nlohmann::json ToJson() const = 0;
 
-        virtual ~BaseMessage() = default;
+        static std::unique_ptr<BaseMessage> FromJson(const nlohmann::json &json);
     };
 }
 

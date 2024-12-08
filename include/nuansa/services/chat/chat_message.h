@@ -79,6 +79,34 @@ namespace nuansa::services::chat {
 
 	// TODO implement this
 	struct ChatResponse final : public nuansa::messages::BaseMessage {
+		ChatResponse(const bool delivered, std::string receipt)
+			: delivered_(delivered), receipt_(std::move(receipt)) {
+		}
+
+		bool IsDelivered() const {
+			return delivered_;
+		}
+
+		std::string GetReceipt() const {
+			return receipt_;
+		}
+
+		[[nodiscard]] nlohmann::json ToJson() const override {
+			return nlohmann::json{{"delivered", delivered_}, {"receipt", receipt_}};
+		}
+
+		static ChatResponse FromJson(const nlohmann::json &json) {
+			try {
+				return ChatResponse(
+					json["delivered"].get<bool>(),
+					json["receipt"].get<std::string>());
+			} catch (std::exception &e) {
+				throw nuansa::utils::exception::MessageParsingException(e.what());
+			}
+		}
+
+		bool delivered_;
+		std::string receipt_;
 	};
 }
 
