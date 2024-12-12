@@ -9,14 +9,14 @@ namespace nuansa::models {
 		User() = default;
 
 		User(const std::string &username, const std::string &email,
-		     const std::string &passwordHash, const std::string &salt);
+		     const std::string &passwordHash, const std::string &salt, const std::string &picture);
 
 		std::string GetUsername() const { return username; }
 		std::string GetEmail() const { return email; }
 		std::string GetPasswordHash() const { return passwordHash; }
 		const std::string &GetSalt() const { return salt; }
 		bool IsActive() const { return isActive; }
-
+		const std::string &GetPicture() const { return picture; }
 
 		nlohmann::json ToJson() const;
 
@@ -42,13 +42,15 @@ namespace nuansa::models {
 		static bool VerifyPassword(const std::string &password, const std::string &salt,
 		                           const std::string &hashedPassword);
 
+		
+
 	private:
 		std::string username;
 		std::string email;
 		std::string passwordHash;
 		std::string salt;
 		bool isActive{};
-
+		std::string picture;
 		// Database helpers
 		static pqxx::connection CreateConnection();
 	};

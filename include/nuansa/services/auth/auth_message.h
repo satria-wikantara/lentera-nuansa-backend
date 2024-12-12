@@ -16,11 +16,11 @@ namespace nuansa::services::auth {
 			: username_(std::move(username)), password_(std::move(password)) {
 		}
 
-		std::string GetUsername() const {
+		[[nodiscard]] std::string GetUsername() const {
 			return username_;
 		}
 
-		std::string GetPassword() const {
+		[[nodiscard]] std::string GetPassword() const {
 			return password_;
 		}
 
@@ -30,9 +30,9 @@ namespace nuansa::services::auth {
 
 		static AuthRequest FromJson(const nlohmann::json &json) {
 			try {
-				return AuthRequest(json["username"].get<std::string>(), json["password"].get<std::string>());
+				return {json["username"].get<std::string>(), json["password"].get<std::string>()};
 			} catch (std::exception &e) {
-				throw nuansa::utils::exception::MessageParsingException("Failed to parse auth request");
+				throw nuansa::utils::exception::MessageParsingException(e.what());
 			}
 		}
 
@@ -46,28 +46,30 @@ namespace nuansa::services::auth {
 			: success_(success), token_(std::move(token)), message_(std::move(message)) {
 		}
 
-		bool IsSuccess() const {
+		[[nodiscard]] bool IsSuccess() const {
 			return success_;
 		}
 
-		std::string GetToken() const {
+		[[nodiscard]] std::string GetToken() const {
 			return token_;
 		}
 
-		std::string GetMessage() const {
+		[[nodiscard]] std::string GetMessage() const {
 			return message_;
 		}
 
-		nlohmann::json ToJson() const override {
+		[[nodiscard]] nlohmann::json ToJson() const override {
 			return nlohmann::json{{"success", success_}, {"token", token_}, "message", message_};
 		}
 
 		static AuthResponse FromJson(const nlohmann::json &json) {
 			try {
-				return AuthResponse(json["success"].get<bool>(), json["token"].get<std::string>(),
-				                    json["message"].get<std::string>());
+				return {
+					json["success"].get<bool>(), json["token"].get<std::string>(),
+					json["message"].get<std::string>()
+				};
 			} catch (std::exception &e) {
-				throw nuansa::utils::exception::MessageParsingException("Failed to parse auth request");
+				throw nuansa::utils::exception::MessageParsingException(e.what());
 			}
 		}
 

@@ -9,11 +9,14 @@ namespace nuansa::models {
     User::User(const std::string &username,
                const std::string &email,
                const std::string &passwordHash,
-               const std::string &salt)
+               const std::string &salt,
+               const std::string &picture)
         : username(username)
           , email(email)
           , passwordHash(passwordHash)
-          , salt(salt), isActive(false) {
+          , salt(salt)
+          , picture(picture)
+          , isActive(false) {
     }
 
     std::string User::GenerateSalt(const size_t length) {
@@ -107,7 +110,8 @@ namespace nuansa::models {
                     result[0]["username"].as<std::string>(),
                     result[0]["email"].as<std::string>(),
                     result[0]["password_hash"].as<std::string>(),
-                    result[0]["salt"].as<std::string>()
+                    result[0]["salt"].as<std::string>(),
+                    result[0]["picture"].as<std::string>()
                 );
                 return user;
             }

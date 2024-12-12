@@ -70,6 +70,31 @@ namespace nuansa::messages {
             return header;
         }
 
+        [[nodiscard]] std::string ToJsonString() const {
+            return ToJson().dump();
+        }
+
+        static MessageHeader FromJsonString(const std::string& jsonString) {
+            return FromJson(nlohmann::json::parse(jsonString));
+        }
+
+        [[nodiscard]] nlohmann::json ToJson() const {
+            return nlohmann::json{
+                {"version", version},
+                {"messageId", messageId},
+                {"sender", sender},
+                {"timestamp", timestamp},
+                {"messageType", messageType},
+                {"correlationId", correlationId},
+                {"priority", priority},
+                {"contentType", contentType},
+                {"encoding", encoding},
+                {"messageLength", messageLength},
+                {"messageHash", messageHash},
+                {"customHeaders", customHeaders}
+            };
+        }
+
     protected:
         void UpdateHeaders(const std::string &content) {
             timestamp = std::time(nullptr);

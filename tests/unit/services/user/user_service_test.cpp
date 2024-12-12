@@ -105,7 +105,7 @@ protected:
         }
 
         return nuansa::services::user::UserService::GetInstance().CreateUser(
-            nuansa::models::User(username, email, password, salt));
+            nuansa::models::User(username, email, password, salt, ""));
     }
 
     static std::optional<nuansa::models::User> GetTestUser(const std::string &username = "testuser") {
@@ -446,7 +446,7 @@ TEST_F(UserServiceTest, ConcurrentOperations) {
             const std::string username = "user" + std::to_string(i);
             const std::string email = "user" + std::to_string(i) + "@example.com";
 
-            EXPECT_TRUE(service.CreateUser(nuansa::models::User(username, email, "Password123#*", "")));
+            EXPECT_TRUE(service.CreateUser(nuansa::models::User(username, email, "Password123#*", "", "")));
             EXPECT_TRUE(service.AuthenticateUser(username, "Password123#*"));
 
             const auto user = service.GetUserByUsername(username);
@@ -506,7 +506,7 @@ TEST_F(UserServiceTest, UpdateUserPasswordInvalid) {
 // Test CreateUser method directly
 TEST_F(UserServiceTest, CreateUserDirect) {
     auto &service = nuansa::services::user::UserService::GetInstance();
-    const nuansa::models::User user("testuser", "test@example.com", "HashedPassword123#*", "");
+    const nuansa::models::User user("testuser", "test@example.com", "HashedPassword123#*", "", "");
 
     service.CreateUser(user);
 

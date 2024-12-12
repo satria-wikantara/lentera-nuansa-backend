@@ -88,6 +88,9 @@ namespace nuansa::handler {
             auto username = msgData[MESSAGE_BODY]["username"].get<std::string>();
             auto email = msgData[MESSAGE_BODY]["email"].get<std::string>();
             auto password = msgData[MESSAGE_BODY]["password"].get<std::string>();
+            // Get auth provider from message data (if provided) or default to Custom
+            auto authProvider = msgData[MESSAGE_BODY].value("authProvider", 
+                static_cast<int>(nuansa::services::auth::AuthProvider::Custom));
 
             LOG_DEBUG << "Processing registration request for user: " << username;
 
@@ -96,7 +99,8 @@ namespace nuansa::handler {
                 messageHeader,
                 username,
                 email,
-                password
+                password,
+                static_cast<nuansa::services::auth::AuthProvider>(authProvider)  // Pass the auth provider
             };
 
             // Get auth service instance and register

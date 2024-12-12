@@ -20,7 +20,7 @@ namespace nuansa::services::user {
 
 		virtual bool DeleteUser(const std::string &username) = 0;
 
-		virtual std::optional<nuansa::models::User> GetUserByUsername(const std::string &username) = 0;
+		virtual std::optional<nuansa::models::User> GetUserByUsername(const std::string &username) const = 0;
 
 		virtual std::optional<nuansa::models::User> GetUserByEmail(const std::string &email) = 0;
 
@@ -29,6 +29,8 @@ namespace nuansa::services::user {
 		[[nodiscard]] virtual bool IsUsernameTaken(const std::string &username) const = 0;
 
 		virtual bool CreateUser(const nuansa::models::User &user) = 0;
+
+		[[nodiscard]] virtual bool UserExists(const std::string &username) const = 0;
 	};
 } // namespace nuansa::services::user
 

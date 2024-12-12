@@ -523,3 +523,19 @@ If you encounter any issues during setup:
 2. Ensure all prerequisites are met
 3. Try running the specific failed step manually
 4. Open an issue if the problem persists
+
+
+```
+ALTER TABLE users ADD COLUMN IF NOT EXISTS picture TEXT;
+
+
+CREATE TABLE IF NOT EXISTS users (
+    username VARCHAR(255) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255),
+    salt VARCHAR(255),
+    picture TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```

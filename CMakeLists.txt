@@ -80,6 +80,10 @@ set(BUILD_GTEST ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 find_package(GTest REQUIRED)
 
+# Add libcurl
+find_package(CURL REQUIRED)
+include_directories(${CURL_INCLUDE_DIRS})
+
 ################################################################################
 # 5. Main Library Target
 ################################################################################
@@ -139,6 +143,7 @@ target_link_libraries(${PROJECT_NAME}_lib PUBLIC
         yaml-cpp::yaml-cpp
         libpqxx::pqxx
         PostgreSQL::PostgreSQL
+        ${CURL_LIBRARIES}
 )
 
 # Platform-specific Configuration

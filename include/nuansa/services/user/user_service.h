@@ -24,7 +24,7 @@ namespace nuansa::services::user {
 
 		void Initialize() override;
 
-		std::optional<nuansa::models::User> GetUserByUsername(const std::string &username) override;
+		std::optional<nuansa::models::User> GetUserByUsername(const std::string &username) const override;
 
 		std::optional<nuansa::models::User> GetUserByEmail(const std::string &email) override;
 
@@ -43,6 +43,8 @@ namespace nuansa::services::user {
 		bool DeleteUser(const std::string &username) override;
 
 		static std::string HashPassword(const std::string &password);
+
+		bool UserExists(const std::string &username) const override;
 
 	private:
 		std::shared_ptr<pqxx::connection> fallbackConnection_;

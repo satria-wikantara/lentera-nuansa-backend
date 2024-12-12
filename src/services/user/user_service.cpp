@@ -53,7 +53,11 @@ namespace nuansa::services::user {
         }
     }
 
-    std::optional<nuansa::models::User> UserService::GetUserByUsername(const std::string &username) {
+    bool UserService::UserExists(const std::string &username) const {
+        return GetUserByUsername(username).has_value();
+    }
+
+    std::optional<nuansa::models::User> UserService::GetUserByUsername(const std::string &username) const {
         try {
             const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
             nuansa::database::ConnectionGuard guard(conn);
@@ -62,7 +66,7 @@ namespace nuansa::services::user {
                 pqxx::work txn{db_conn};
 
                 const auto result = txn.exec_params(
-                    "SELECT username, email, password_hash, salt FROM users WHERE username = $1",
+                    "SELECT username, email, password_hash, salt, picture FROM users WHERE username = $1",
                     username);
 
                 if (result.empty()) {
@@ -73,7 +77,8 @@ namespace nuansa::services::user {
                     result[0]["username"].as<std::string>(),
                     result[0]["email"].as<std::string>(),
                     result[0]["password_hash"].as<std::string>(),
-                    result[0]["salt"].as<std::string>()
+                    result[0]["salt"].as<std::string>(),
+                    result[0]["picture"].as<std::string>()
                 ));
             });
         } catch (const std::exception &e) {
@@ -89,19 +94,21 @@ namespace nuansa::services::user {
             pqxx::work txn{*conn};
 
             const auto result = txn.exec_params(
-                "SELECT username, email, password_hash, salt FROM users WHERE email = $1",
+                "SELECT username, email, password_hash, salt, picture FROM users WHERE email = $1",
                 email);
 
             if (result.empty()) {
                 return std::nullopt;
             }
 
-            return nuansa::models::User(
+            return std::optional<nuansa::models::User>(nuansa::models::User(
                 result[0]["username"].as<std::string>(),
                 result[0]["email"].as<std::string>(),
                 result[0]["password_hash"].as<std::string>(),
-                result[0]["salt"].as<std::string>()
-            );
+                result[0]["salt"].as<std::string>(),
+                result[0]["picture"].as<std::string>()
+            ));
+
         } catch (const std::exception &e) {
             LOG_ERROR << "Error retrieving user by email: " << e.what();
             return std::nullopt;
@@ -196,14 +203,14 @@ namespace nuansa::services::user {
         }
 
         try {
-            // Create user with the salt and hashed password
+            // Create user with all required fields including picture
             nuansa::models::User userToCreate(
                 user.GetUsername(),
                 user.GetEmail(),
                 user.GetPasswordHash(),
-                user.GetSalt()
+                user.GetSalt(),
+                user.GetPicture()
             );
-
 
             if (!nuansa::database::ConnectionPool::GetInstance().IsInitialized()) {
                 LOG_ERROR << "Connection pool not initialized";
@@ -223,8 +230,8 @@ namespace nuansa::services::user {
             guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
                 pqxx::work txn(db_conn);
                 txn.exec_params(
-                    "INSERT INTO users (username, email, password_hash, salt) VALUES ($1, $2, $3, $4)",
-                    user.GetUsername(), user.GetEmail(), user.GetPasswordHash(), user.GetSalt());
+                    "INSERT INTO users (username, email, password_hash, salt, picture) VALUES ($1, $2, $3, $4, $5)",
+                    user.GetUsername(), user.GetEmail(), user.GetPasswordHash(), user.GetSalt(), user.GetPicture());
                 txn.commit();
                 return true;
             });
