@@ -10,6 +10,9 @@
 #include "nuansa/services/auth/auth_message.h"
 #include "nuansa/services/auth/register_message.h"
 #include "nuansa/utils/http_client.h"
+#include "nuansa/config/config.h"
+
+using namespace nuansa::config;
 
 namespace nuansa::services::auth {
     AuthService &AuthService::GetInstance() {
@@ -20,6 +23,26 @@ namespace nuansa::services::auth {
     AuthService::AuthService() 
         : gen(rd()), 
           httpClient(std::make_unique<utils::HttpClient>()) {
+        // Get GitHub config from ServerConfig
+        const auto& config = Config::GetInstance().GetServerConfig();
+        GITHUB_CLIENT_ID = config.githubClientId;
+        GITHUB_CLIENT_SECRET = config.githubClientSecret;
+        GITHUB_REDIRECT_URI = config.githubRedirectUri;
+        GITHUB_API_URL = config.githubApiUrl;
+        GITHUB_TOKEN_VALIDATION_URL = config.githubTokenValidationUrl;
+        GITHUB_USER_API_URL = config.githubUserApiUrl;
+        GITHUB_USER_EMAILS_URL = config.githubUserEmailsUrl;
+
+        GOOGLE_CLIENT_ID = config.googleClientId;
+        GOOGLE_CLIENT_SECRET = config.googleClientSecret;
+        GOOGLE_REDIRECT_URI = config.googleRedirectUri;
+        GOOGLE_TOKEN_INFO_URL = config.googleTokenInfoUrl;
+        GOOGLE_USER_INFO_URL = config.googleUserInfoUrl;
+
+        if (GITHUB_CLIENT_ID.empty() || GITHUB_CLIENT_SECRET.empty() || GITHUB_REDIRECT_URI.empty()) {
+            LOG_WARNING << "GitHub OAuth configuration is incomplete";
+        }
+
         // TODO: In production, load from secure database
         // For demonstration, adding some test users with hashed passwords
         userCredentials["alice"] = crypt("password123", "$6$random_salt");
@@ -100,13 +123,17 @@ namespace nuansa::services::auth {
     }
 
     nuansa::services::auth::AuthResponse AuthService::Register(const nuansa::services::auth::RegisterRequest &request) {
+        LOG_DEBUG << "Registering user with provider: " << static_cast<int>(request.GetAuthProvider());
         std::lock_guard<std::mutex> lock(authMutex);
 
         switch (request.GetAuthProvider()) {
             case AuthProvider::Custom:
                 return HandleCustomRegistration(request);
             case AuthProvider::Google:
+                LOG_DEBUG << "Registering user with provider: Google";
+                return HandleOAuthRegistration(request);
             case AuthProvider::GitHub:
+                LOG_DEBUG << "Registering user with provider: GitHub";
                 return HandleOAuthRegistration(request);
             default:
                 return AuthResponse{false, "", "Unsupported authentication provider"};
@@ -163,18 +190,25 @@ namespace nuansa::services::auth {
     }
 
     AuthResponse AuthService::HandleOAuthRegistration(const RegisterRequest& request) {
+        LOG_DEBUG << "Handling OAuth registration";
+
         if (!request.GetOAuthCredentials()) {
+            LOG_ERROR << "Missing OAuth credentials";
             return AuthResponse{false, "", "Missing OAuth credentials"};
         }
 
         std::optional<OAuthUserInfo> userInfo;
+
+        LOG_DEBUG << "Validating OAuth token";
         
         // Validate OAuth token and get user info
         switch (request.GetAuthProvider()) {
             case AuthProvider::Google:
+                LOG_DEBUG << "Validating Google OAuth token";
                 userInfo = ValidateGoogleToken(*request.GetOAuthCredentials());
                 break;
             case AuthProvider::GitHub:
+                LOG_DEBUG << "Validating GitHub OAuth token";
                 userInfo = ValidateGitHubToken(*request.GetOAuthCredentials());
                 break;
             default:
@@ -220,7 +254,7 @@ namespace nuansa::services::auth {
 
         // Google's OAuth2 v3 tokeninfo endpoint
         const std::string tokenInfoUrl = 
-            GOOGLE_OAUTH_TOKENINFO_URL + "?access_token=" + credentials.accessToken;
+            GOOGLE_TOKEN_INFO_URL + "?access_token=" + credentials.accessToken;
 
         // First validate the token
         auto tokenResponse = httpClient->Get(tokenInfoUrl);
@@ -239,7 +273,7 @@ namespace nuansa::services::auth {
             }
 
             // If token is valid, get user info
-            auto userResponse = httpClient->Get(GOOGLE_OAUTH_USERINFO_URL, headers);
+            auto userResponse = httpClient->Get(GOOGLE_USER_INFO_URL, headers);
             if (!userResponse.success) {
                 LOG_ERROR << "Failed to get Google user info: " << userResponse.error;
                 return std::nullopt;
@@ -297,40 +331,73 @@ namespace nuansa::services::auth {
 
     std::optional<AuthService::OAuthUserInfo> AuthService::ValidateGitHubToken(
         const OAuthCredentials& credentials) {
-        // Set up request headers with required fields
-        std::vector<std::string> headers = {
-            "Authorization: Bearer " + credentials.accessToken,
-            "Accept: application/vnd.github.v3+json",
-            "User-Agent: Nuansa-App"  // GitHub requires a User-Agent header
-        };
-
-        // First validate the token using GitHub's token validation endpoint
-        auto tokenResponse = httpClient->Get(GITHUB_TOKEN_VALIDATION_URL, headers);
-        if (!tokenResponse.success) {
-            LOG_ERROR << "Failed to validate GitHub token: " << tokenResponse.error;
-            return std::nullopt;
-        }
-
+        LOG_DEBUG << "Validating GitHub OAuth token";
         try {
-            auto tokenInfo = nlohmann::json::parse(tokenResponse.body);
-            
-            // Validate token scopes and other properties
-            if (!ValidateGitHubTokenClaims(tokenInfo)) {
-                LOG_ERROR << "Invalid GitHub token claims";
+            if (!credentials.code || !credentials.redirectUri) {
+                LOG_ERROR << "Missing required OAuth code or redirect URI";
                 return std::nullopt;
             }
 
-            // If token is valid, get user info
-            auto userResponse = httpClient->Get(GITHUB_USER_API_URL, headers);
+            // Exchange code for access token
+            nlohmann::json requestBody = {
+                {"client_id", GITHUB_CLIENT_ID},
+                {"client_secret", GITHUB_CLIENT_SECRET},
+                {"code", *credentials.code},
+                {"redirect_uri", GITHUB_REDIRECT_URI}
+            };
+
+            LOG_DEBUG << "Exchanging code for token";
+            auto tokenResponse = httpClient->Post(
+                "https://github.com/login/oauth/access_token",
+                requestBody.dump(),
+                {
+                    "Accept: application/json",
+                    "Content-Type: application/json",
+                    "User-Agent: Nuansa-App"
+                }
+            );
+
+            if (!tokenResponse.success) {
+                LOG_ERROR << "Failed to exchange code for token: " << tokenResponse.error 
+                         << " Response: " << tokenResponse.body;
+                return std::nullopt;
+            }
+
+            // Parse the token response
+            auto tokenJson = nlohmann::json::parse(tokenResponse.body);
+            std::string accessToken = tokenJson["access_token"].get<std::string>();
+            
+            LOG_DEBUG << "Successfully obtained access token";
+
+            // Now get user info using the access token
+            auto userResponse = httpClient->Get(
+                "https://api.github.com/user",
+                {
+                    "Authorization: Bearer " + accessToken,  // Changed to Bearer as per docs
+                    "Accept: application/vnd.github+json",
+                    "X-GitHub-Api-Version: 2022-11-28",
+                    "User-Agent: Nuansa-App"
+                }
+            );
+
             if (!userResponse.success) {
-                LOG_ERROR << "Failed to get GitHub user info: " << userResponse.error;
+                LOG_ERROR << "Failed to get user info: " << userResponse.error;
                 return std::nullopt;
             }
 
             auto userInfo = nlohmann::json::parse(userResponse.body);
             
-            // Get user email (might be private, need separate call)
-            auto emailResponse = httpClient->Get(GITHUB_USER_EMAILS_URL, headers);
+            // Get user email
+            auto emailResponse = httpClient->Get(
+                GITHUB_USER_EMAILS_URL,
+                {
+                    "Authorization: Bearer " + accessToken,
+                    "Accept: application/vnd.github+json",
+                    "X-GitHub-Api-Version: 2022-11-28",
+                    "User-Agent: Nuansa-App"
+                }
+            );
+
             std::string primaryEmail;
             if (emailResponse.success) {
                 auto emails = nlohmann::json::parse(emailResponse.body);
@@ -347,7 +414,7 @@ namespace nuansa::services::auth {
             }
 
             if (primaryEmail.empty()) {
-                LOG_ERROR << "Could not find primary email for GitHub user";
+                LOG_ERROR << "Could not find verified primary email for GitHub user";
                 return std::nullopt;
             }
 
@@ -359,40 +426,21 @@ namespace nuansa::services::auth {
             };
 
         } catch (const std::exception& e) {
-            LOG_ERROR << "Failed to parse GitHub response: " << e.what();
+            LOG_ERROR << "Failed to validate GitHub token: " << e.what();
             return std::nullopt;
         }
     }
 
-    bool AuthService::ValidateGitHubTokenClaims(const nlohmann::json& tokenInfo) {
-        try {
-            // Check if token is valid
-            if (!tokenInfo.contains("active") || !tokenInfo["active"].get<bool>()) {
-                LOG_ERROR << "GitHub token is inactive";
-                return false;
+    bool AuthService::VerifyGitHubScopes(const std::vector<std::string>& headers) {
+        // Look for the X-OAuth-Scopes header
+        for (const auto& header : headers) {
+            if (header.find("X-OAuth-Scopes: ") == 0) {
+                std::string scopes = header.substr(15); // Length of "X-OAuth-Scopes: "
+                return (scopes.find("user") != std::string::npos || 
+                       scopes.find("read:user") != std::string::npos) &&
+                       scopes.find("user:email") != std::string::npos;
             }
-
-            // Verify required scopes
-            if (tokenInfo.contains("scope")) {
-                std::string scopes = tokenInfo["scope"].get<std::string>();
-                if (scopes.find("read:user") == std::string::npos || 
-                    scopes.find("user:email") == std::string::npos) {
-                    LOG_ERROR << "Token missing required scopes";
-                    return false;
-                }
-            }
-
-            // Verify app client_id if available
-            if (tokenInfo.contains("client_id") && 
-                tokenInfo["client_id"].get<std::string>() != GITHUB_CLIENT_ID) {
-                LOG_ERROR << "Token was not issued for this application";
-                return false;
-            }
-
-            return true;
-        } catch (const std::exception& e) {
-            LOG_ERROR << "Error validating GitHub token claims: " << e.what();
-            return false;
         }
+        return false;
     }
 }

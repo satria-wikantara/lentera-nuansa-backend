@@ -52,6 +52,7 @@ namespace nuansa::services::auth {
 
 		bool ValidateGoogleTokenClaims(const nlohmann::json& tokenInfo);
 		bool ValidateGitHubTokenClaims(const nlohmann::json& tokenInfo);
+		bool VerifyGitHubScopes(const std::vector<std::string>& headers);
 
 		// OAuth methods
 		AuthResponse HandleOAuthRegistration(const RegisterRequest& request);
@@ -62,21 +63,23 @@ namespace nuansa::services::auth {
 		std::optional<OAuthUserInfo> ValidateGitHubToken(const OAuthCredentials& credentials);
 		
 		// Google
-		const std::string GOOGLE_OAUTH_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
-		const std::string GOOGLE_OAUTH_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
-
-		// TODO: Get from env
-		const std::string GOOGLE_CLIENT_ID;
+		std::string GOOGLE_CLIENT_ID;
+		std::string GOOGLE_CLIENT_SECRET;
+		std::string GOOGLE_REDIRECT_URI;
+		std::string GOOGLE_TOKEN_INFO_URL;
+		std::string GOOGLE_USER_INFO_URL;
 		
 		// Github
-		const std::string GITHUB_API_URL = "https://api.github.com/user";
-		const std::string GITHUB_TOKEN_VALIDATION_URL;
-		const std::string GITHUB_USER_API_URL;
-		const std::string GITHUB_USER_EMAILS_URL;
-
-		// TODO: Get from env
-		const std::string GITHUB_CLIENT_ID;
+		std::string GITHUB_CLIENT_ID;
+		std::string GITHUB_CLIENT_SECRET;
+		std::string GITHUB_REDIRECT_URI;
 		
+		// Github endpoints (these can stay const)
+		std::string GITHUB_API_URL;
+		std::string GITHUB_TOKEN_VALIDATION_URL;
+		std::string GITHUB_USER_API_URL;
+		std::string GITHUB_USER_EMAILS_URL;
+
 		std::unique_ptr<utils::HttpClient> httpClient;
 
 		

@@ -19,18 +19,24 @@ namespace nuansa::utils {
 		static bool ValidatePassword(const std::string &password);
 
 		struct PathValidationOptions {
-			size_t maxFileSize = 0;
-			bool mustBeRegularFile = false;
-			bool checkWorldReadable = false;
-			bool allowOutsideBaseDir = true;
+			size_t maxFileSize;
+			bool mustBeRegularFile;
+			bool checkWorldReadable;
+			bool allowOutsideBaseDir;
 			std::filesystem::path baseDir;
 			std::vector<std::string> allowedExtensions;
+
+			PathValidationOptions() : 
+				maxFileSize(0),
+				mustBeRegularFile(false),
+				checkWorldReadable(false),
+				allowOutsideBaseDir(true) {}
 		};
 
 		// Returns normalized path if valid, throws std::runtime_error if invalid
 		static std::filesystem::path NormalizePath(
 			const std::filesystem::path& path,
-			const PathValidationOptions& options = PathValidationOptions{});
+			const PathValidationOptions& options = PathValidationOptions());
 	};
 }
 

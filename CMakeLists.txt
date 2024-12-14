@@ -268,38 +268,63 @@ endif ()
 ################################################################################
 # 9. Utility Functions and Targets
 ################################################################################
+# Function to set initial config permissions
+if(UNIX)
+    add_custom_target(init_config_permissions
+        COMMAND chmod 600 ${CMAKE_SOURCE_DIR}/config.yml
+        COMMAND chmod 600 ${CMAKE_SOURCE_DIR}/.env
+        COMMENT "Setting initial config file permissions"
+    )
+endif()
+
 # Config file copying function
 function(copy_config_files TARGET_NAME)
-    add_custom_command(
+    if(UNIX)
+        add_custom_command(
             TARGET ${TARGET_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/config.yml
-            $<TARGET_FILE_DIR:${TARGET_NAME}>/config.yml
+                ${CMAKE_SOURCE_DIR}/config.yml
+                $<TARGET_FILE_DIR:${TARGET_NAME}>/config.yml
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/.env
-            $<TARGET_FILE_DIR:${TARGET_NAME}>/.env
+                ${CMAKE_SOURCE_DIR}/.env
+                $<TARGET_FILE_DIR:${TARGET_NAME}>/.env
+            COMMAND chmod 600 $<TARGET_FILE_DIR:${TARGET_NAME}>/config.yml
+            COMMAND chmod 600 $<TARGET_FILE_DIR:${TARGET_NAME}>/.env
+            COMMENT "Copying configuration files and setting permissions for ${TARGET_NAME}"
+        )
+        add_dependencies(${TARGET_NAME} init_config_permissions)
+    else()
+        add_custom_command(
+            TARGET ${TARGET_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_SOURCE_DIR}/config.yml
+                $<TARGET_FILE_DIR:${TARGET_NAME}>/config.yml
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_SOURCE_DIR}/.env
+                $<TARGET_FILE_DIR:${TARGET_NAME}>/.env
             COMMENT "Copying configuration files for ${TARGET_NAME}"
-    )
+        )
+    endif()
 endfunction()
 
 # Apply config copying to all targets
 copy_config_files(${PROJECT_NAME})
-foreach (TEST_TARGET ${PROJECT_NAME}_tests user_service_test websocket_handler_test)
+foreach(TEST_TARGET ${PROJECT_NAME}_tests user_service_test websocket_handler_test)
     copy_config_files(${TEST_TARGET})
-endforeach ()
+endforeach()
 
 # Custom targets
 add_custom_target(run
-        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME}..."
-        COMMAND $<TARGET_FILE:${PROJECT_NAME}>
-        DEPENDS ${PROJECT_NAME}
+    COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME}..."
+    COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+    DEPENDS ${PROJECT_NAME}
 )
 
 add_custom_target(clean_build
-        COMMAND ${CMAKE_COMMAND} -E echo "Cleaning build directory..."
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/bin
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/bin/coverage
-        DEPENDS ${PROJECT_NAME}
+    COMMAND ${CMAKE_COMMAND} -E echo "Cleaning build directory..."
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_SOURCE_DIR}/bin
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/bin/coverage
+    DEPENDS ${PROJECT_NAME}
 )
 
 if (ENABLE_COVERAGE)

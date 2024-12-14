@@ -19,6 +19,9 @@ namespace nuansa::utils::crypto {
 		static std::string GenerateRandomSalt();
 
 		static std::string HashPassword(const std::string &password, const std::string &salt);
+
+		static std::string Base64Encode(const std::string& input);
+		static std::string Base64Decode(const std::string& input);
 	};
 }
 

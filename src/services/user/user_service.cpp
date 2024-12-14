@@ -57,30 +57,52 @@ namespace nuansa::services::user {
         return GetUserByUsername(username).has_value();
     }
 
+    // TODO: Fix error in this function when registering new user
     std::optional<nuansa::models::User> UserService::GetUserByUsername(const std::string &username) const {
         try {
-            const auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection();
-            nuansa::database::ConnectionGuard guard(conn);
+            if (!nuansa::database::ConnectionPool::GetInstance().IsInitialized()) {
+                LOG_ERROR << "Connection pool not initialized";
+                return std::nullopt;
+            }
 
-            return guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
-                pqxx::work txn{db_conn};
+            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection(
+                std::chrono::milliseconds(1000)
+            );
 
-                const auto result = txn.exec_params(
-                    "SELECT username, email, password_hash, salt, picture FROM users WHERE username = $1",
-                    username);
+            if (!conn) {
+                LOG_ERROR << "Failed to acquire database connection";
+                return std::nullopt;
+            }
 
-                if (result.empty()) {
-                    return std::optional<nuansa::models::User>();
-                }
+            nuansa::database::ConnectionGuard guard(std::move(conn));
+            
+            try {
+                return guard.ExecuteWithRetry([&](pqxx::connection &db_conn) {
+                    pqxx::work txn{db_conn};
 
-                return std::optional<nuansa::models::User>(nuansa::models::User(
-                    result[0]["username"].as<std::string>(),
-                    result[0]["email"].as<std::string>(),
-                    result[0]["password_hash"].as<std::string>(),
-                    result[0]["salt"].as<std::string>(),
-                    result[0]["picture"].as<std::string>()
-                ));
-            });
+                    const auto result = txn.exec_params(
+                        "SELECT username, email, password_hash, salt, picture "
+                        "FROM users WHERE username = $1",
+                        username
+                    );
+
+                    if (result.empty()) {
+                        return std::optional<nuansa::models::User>();
+                    }
+
+                    return std::optional<nuansa::models::User>(nuansa::models::User(
+                        result[0]["username"].as<std::string>(),
+                        result[0]["email"].as<std::string>(),
+                        result[0]["password_hash"].as<std::string>(),
+                        result[0]["salt"].as<std::string>(),
+                        result[0]["picture"].as<std::string>()
+                    ));
+                });
+            } catch (const std::exception& e) {
+                LOG_ERROR << "Database query failed: " << e.what();
+                return std::nullopt;
+            }
+
         } catch (const std::exception &e) {
             LOG_ERROR << "Error retrieving user by username: " << e.what();
             return std::nullopt;

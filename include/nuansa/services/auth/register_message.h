@@ -64,21 +64,40 @@ namespace nuansa::services::auth {
 
 		[[nodiscard]] nlohmann::json ToJson() const override {
 			nlohmann::json json;
-			json[MESSAGE_HEADER] = messageHeader_.ToJson();
-			json["authProvider"] = static_cast<int>(authProvider_);
+			json["head"] = messageHeader_.ToJson();
+			
+			json["body"] = {
+				{"authProvider", static_cast<int>(authProvider_)}
+			};
 			
 			if (oauthCredentials_) {
-				json["oauthCredentials"] = {
+				json["body"]["oauthCredentials"] = {
 					{"accessToken", oauthCredentials_->accessToken},
 					{"refreshToken", oauthCredentials_->refreshToken},
 					{"scope", oauthCredentials_->scope},
 					{"expiresIn", oauthCredentials_->expiresIn}
 				};
+				
+				if (oauthCredentials_->code) {
+					json["body"]["oauthCredentials"]["code"] = *oauthCredentials_->code;
+				}
+				if (oauthCredentials_->redirectUri) {
+					json["body"]["oauthCredentials"]["redirectUri"] = *oauthCredentials_->redirectUri;
+				}
+				if (oauthCredentials_->idToken) {
+					json["body"]["oauthCredentials"]["idToken"] = *oauthCredentials_->idToken;
+				}
+				if (oauthCredentials_->tokenType) {
+					json["body"]["oauthCredentials"]["tokenType"] = *oauthCredentials_->tokenType;
+				}
+				if (oauthCredentials_->expiresAt) {
+					json["body"]["oauthCredentials"]["expiresAt"] = *oauthCredentials_->expiresAt;
+				}
 			}
 			
-			if (username_) json["username"] = *username_;
-			if (email_) json["email"] = *email_;
-			if (password_) json["password"] = *password_;
+			if (username_) json["body"]["username"] = *username_;
+			if (email_) json["body"]["email"] = *email_;
+			if (password_) json["body"]["password"] = *password_;
 			
 			return json;
 		}
@@ -86,25 +105,45 @@ namespace nuansa::services::auth {
 		static RegisterRequest FromJson(const nlohmann::json& json) {
 			try {
 				RegisterRequest request;
-				request.messageHeader_ = messages::MessageHeader::FromJson(json[MESSAGE_HEADER]);
-				request.authProvider_ = static_cast<AuthProvider>(json["authProvider"].get<int>());
+				request.messageHeader_ = messages::MessageHeader::FromJson(json["head"]);
+				
+				const auto& body = json["body"];
+				request.authProvider_ = static_cast<AuthProvider>(body["authProvider"].get<int>());
 
-				if (json.contains("oauthCredentials")) {
-					const auto& oauth = json["oauthCredentials"];
-					request.oauthCredentials_ = OAuthCredentials{
-						oauth["accessToken"].get<std::string>(),
-						oauth["refreshToken"].get<std::string>(),
-						oauth["scope"].get<std::string>(),
-						oauth["expiresIn"].get<int64_t>()
+				if (body.contains("oauthCredentials")) {
+					const auto& oauth = body["oauthCredentials"];
+					OAuthCredentials creds{
+						oauth.value("accessToken", ""),
+						oauth.value("refreshToken", ""),
+						oauth.value("scope", ""),
+						oauth.value("expiresIn", 0)
 					};
+					
+					if (oauth.contains("code")) {
+						creds.code = oauth["code"].get<std::string>();
+					}
+					if (oauth.contains("redirectUri")) {
+						creds.redirectUri = oauth["redirectUri"].get<std::string>();
+					}
+					if (oauth.contains("idToken")) {
+						creds.idToken = oauth["idToken"].get<std::string>();
+					}
+					if (oauth.contains("tokenType")) {
+						creds.tokenType = oauth["tokenType"].get<std::string>();
+					}
+					if (oauth.contains("expiresAt")) {
+						creds.expiresAt = oauth["expiresAt"].get<int64_t>();
+					}
+					
+					request.oauthCredentials_ = std::move(creds);
 				}
 
-				if (json.contains("username")) 
-					request.username_ = json["username"].get<std::string>();
-				if (json.contains("email")) 
-					request.email_ = json["email"].get<std::string>();
-				if (json.contains("password")) 
-					request.password_ = json["password"].get<std::string>();
+				if (body.contains("username")) 
+					request.username_ = body["username"].get<std::string>();
+				if (body.contains("email")) 
+					request.email_ = body["email"].get<std::string>();
+				if (body.contains("password")) 
+					request.password_ = body["password"].get<std::string>();
 
 				return request;
 			} catch (const std::exception& e) {

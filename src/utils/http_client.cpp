@@ -21,42 +21,150 @@ namespace nuansa::utils {
         return size * nmemb;
     }
 
+
     HttpClient::Response HttpClient::Get(const std::string& url, 
                                        const std::vector<std::string>& headers) {
+        LOG_DEBUG << "Getting URL: " << url;
+
         Response response{false, "", "", 0};
         std::string responseData;
 
-        curl_easy_reset(curl);
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
-
-        // Set headers if any
-        struct curl_slist* headerList = nullptr;
-        for (const auto& header : headers) {
-            headerList = curl_slist_append(headerList, header.c_str());
-        }
-        if (headerList) {
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerList);
+        if (!curl) {
+            curl = curl_easy_init();  // Try to reinitialize
+            if (!curl) {
+                LOG_ERROR << "CURL not initialized and reinit failed";
+                response.error = "CURL initialization failed";
+                return response;
+            }
         }
 
-        CURLcode res = curl_easy_perform(curl);
-        
-        if (headerList) {
-            curl_slist_free_all(headerList);
-        }
+        try {
+            std::unique_ptr<curl_slist, decltype(&curl_slist_free_all)> 
+                headerList(nullptr, curl_slist_free_all);
 
-        if (res != CURLE_OK) {
-            response.error = curl_easy_strerror(res);
+            curl_easy_reset(curl);
+            
+            // Set basic CURL options with error checking
+            auto setopt = [this](CURLoption option, auto value) {
+                CURLcode res = curl_easy_setopt(curl, option, value);
+                if (res != CURLE_OK) {
+                    throw std::runtime_error(std::string("CURL setopt failed: ") + 
+                                          curl_easy_strerror(res));
+                }
+            };
+
+            // Basic options
+            setopt(CURLOPT_URL, url.c_str());
+            setopt(CURLOPT_FOLLOWLOCATION, 1L);
+            setopt(CURLOPT_NOSIGNAL, 1L);
+            setopt(CURLOPT_TIMEOUT, 30L);
+            setopt(CURLOPT_SSL_VERIFYPEER, 1L);
+            setopt(CURLOPT_SSL_VERIFYHOST, 2L);
+            
+            // Callbacks
+            setopt(CURLOPT_WRITEFUNCTION, WriteCallback);
+            setopt(CURLOPT_WRITEDATA, &responseData);
+            setopt(CURLOPT_HEADERFUNCTION, 
+                +[](char* buffer, size_t size, size_t nitems, void* userdata) -> size_t {
+                    if (!buffer || !userdata) return 0;
+                    auto* headers = static_cast<std::vector<std::string>*>(userdata);
+                    headers->emplace_back(buffer, size * nitems);
+                    return size * nitems;
+                });
+            setopt(CURLOPT_HEADERDATA, &response.headers);
+
+            // Set custom headers
+            curl_slist* list = nullptr;
+            for (const auto& header : headers) {
+                list = curl_slist_append(list, header.c_str());
+                if (!list) {
+                    throw std::runtime_error("Failed to append header");
+                }
+            }
+            
+            if (list) {
+                headerList.reset(list);
+                setopt(CURLOPT_HTTPHEADER, list);
+            }
+
+            // Perform request
+            CURLcode res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                throw std::runtime_error(std::string("CURL request failed: ") + 
+                                       curl_easy_strerror(res));
+            }
+
+            long httpCode;
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+            response.statusCode = httpCode;
+            response.body = responseData;
+            response.success = (httpCode >= 200 && httpCode < 300);
+
+            if (!response.success) {
+                LOG_ERROR << "Request failed with status " << httpCode << ": " << responseData;
+            }
+
+            return response;
+
+        } catch (const std::exception& e) {
+            LOG_ERROR << "HTTP GET failed: " << e.what();
+            response.error = e.what();
             return response;
         }
+    }
 
-        long httpCode;
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-        response.statusCode = httpCode;
-        response.body = responseData;
-        response.success = (httpCode >= 200 && httpCode < 300);
+    HttpClient::Response HttpClient::Post(const std::string& url,
+                                         const std::string& body,
+                                         const std::vector<std::string>& headers,
+                                         const std::string& username,
+                                         const std::string& password) {
+        Response response{false, "", "", 0};
+        std::string responseData;
 
-        return response;
+        try {
+            curl_easy_reset(curl);
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_POST, 1L);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+
+            // Set Basic Auth if provided
+            if (!username.empty()) {
+                curl_easy_setopt(curl, CURLOPT_USERNAME, username.c_str());
+                curl_easy_setopt(curl, CURLOPT_PASSWORD, password.c_str());
+            }
+
+            struct curl_slist* headerList = nullptr;
+            for (const auto& header : headers) {
+                headerList = curl_slist_append(headerList, header.c_str());
+            }
+            if (headerList) {
+                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerList);
+            }
+
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (headerList) {
+                curl_slist_free_all(headerList);
+            }
+
+            if (res != CURLE_OK) {
+                response.error = curl_easy_strerror(res);
+                return response;
+            }
+
+            long httpCode;
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+            response.statusCode = httpCode;
+            response.body = responseData;
+            response.success = (httpCode >= 200 && httpCode < 300);
+
+            return response;
+        } catch (const std::exception& e) {
+            LOG_ERROR << "HTTP POST failed: " << e.what();
+            response.error = e.what();
+            return response;
+        }
     }
 } 

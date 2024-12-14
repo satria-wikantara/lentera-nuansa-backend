@@ -79,36 +79,77 @@ namespace nuansa::handler {
     void WebSocketStateMachine::HandleRegistration(const nlohmann::json &msgData) const {
         try {
             LOG_DEBUG << "Getting message header";
-            // Extract header from the nested structure
             auto messageHeader = nuansa::messages::MessageHeader::FromJson(msgData[MESSAGE_HEADER]);
-
             LOG_DEBUG << "Done Getting message header";
 
-            // Extract data from the nested structure
-            auto username = msgData[MESSAGE_BODY]["username"].get<std::string>();
-            auto email = msgData[MESSAGE_BODY]["email"].get<std::string>();
-            auto password = msgData[MESSAGE_BODY]["password"].get<std::string>();
-            // Get auth provider from message data (if provided) or default to Custom
+            // Get auth provider from message data
             auto authProvider = msgData[MESSAGE_BODY].value("authProvider", 
                 static_cast<int>(nuansa::services::auth::AuthProvider::Custom));
+            auto provider = static_cast<nuansa::services::auth::AuthProvider>(authProvider);
 
-            LOG_DEBUG << "Processing registration request for user: " << username;
+            nuansa::services::auth::RegisterRequest registrationRequest;
 
-            // Create registration request
-            nuansa::services::auth::RegisterRequest registrationRequest{
-                messageHeader,
-                username,
-                email,
-                password,
-                static_cast<nuansa::services::auth::AuthProvider>(authProvider)  // Pass the auth provider
-            };
+            if (provider == nuansa::services::auth::AuthProvider::Custom) {
+                // Handle custom registration
+                auto username = msgData[MESSAGE_BODY]["username"].get<std::string>();
+                auto email = msgData[MESSAGE_BODY]["email"].get<std::string>();
+                auto password = msgData[MESSAGE_BODY]["password"].get<std::string>();
+
+                LOG_DEBUG << "Processing custom registration request for user: " << username;
+
+                registrationRequest = nuansa::services::auth::RegisterRequest(
+                    messageHeader,
+                    username,
+                    email,
+                    password,
+                    provider
+                );
+            } else {
+                // Handle OAuth registration (Google or GitHub)
+                const auto& oauthData = msgData["body"]["oauthCredentials"];
+                
+                nuansa::services::auth::OAuthCredentials credentials{
+                    oauthData.value("accessToken", ""),
+                    oauthData.value("refreshToken", ""),
+                    oauthData.value("scope", ""),
+                    oauthData.value("expiresIn", 0)
+                };
+
+                // Add OAuth flow fields
+                if (oauthData.contains("code")) {
+                    credentials.code = oauthData["code"].get<std::string>();
+                }
+                if (oauthData.contains("redirectUri")) {
+                    credentials.redirectUri = oauthData["redirectUri"].get<std::string>();
+                }
+
+                // Add optional OAuth fields
+                if (oauthData.contains("idToken")) {
+                    credentials.idToken = oauthData["idToken"].get<std::string>();
+                }
+                if (oauthData.contains("tokenType")) {
+                    credentials.tokenType = oauthData["tokenType"].get<std::string>();
+                }
+                if (oauthData.contains("expiresAt")) {
+                    credentials.expiresAt = oauthData["expiresAt"].get<int64_t>();
+                }
+
+                LOG_DEBUG << "Processing OAuth registration request with provider: " 
+                         << static_cast<int>(provider);
+
+                registrationRequest = nuansa::services::auth::RegisterRequest(
+                    messageHeader,
+                    provider,
+                    credentials
+                );
+            }
 
             // Get auth service instance and register
-            auto &authService = nuansa::services::auth::AuthService::GetInstance();
-            auto [success, token, message] = authService.Register(registrationRequest);
+            auto& authService = nuansa::services::auth::AuthService::GetInstance();
+            auto response = authService.Register(registrationRequest);
 
-            // Prepare response JSON with similar structure
-            nlohmann::json response = {
+            // Prepare response JSON
+            nlohmann::json responseJson = {
                 {
                     MESSAGE_HEADER, {
                         {MESSAGE_HEADER_VERSION, "1.0"},
@@ -120,20 +161,20 @@ namespace nuansa::handler {
                 },
                 {
                     MESSAGE_BODY, {
-                        {"success", success},
-                        {"message", message},
-                        {"token", token} // Include token if registration successful
+                        {"success", response.IsSuccess()},
+                        {"message", response.GetMessage()}
                     }
                 }
             };
 
-            if (success) {
-                LOG_INFO << "User registered successfully: " << username;
+            if (response.IsSuccess()) {
+                LOG_INFO << "User registered successfully";
             } else {
-                LOG_WARNING << "Registration failed for user: " << username;
+                LOG_WARNING << "Registration failed: " << response.GetMessage();
             }
-            SendMessage(response.dump());
-        } catch (const std::exception &e) {
+
+            SendMessage(responseJson.dump());
+        } catch (const std::exception& e) {
             LOG_ERROR << "Error during registration: " << e.what();
 
             nlohmann::json errorResponse = {
@@ -233,6 +274,8 @@ namespace nuansa::handler {
             const auto ws = client->GetWebSocket();
             ws->text(true);
             ws->write(net::buffer(msgData));
+
+            LOG_DEBUG << "Message sent: " << msgData;
         } catch (const std::exception &e) {
             LOG_ERROR << "Error sending message: " << e.what();
         }

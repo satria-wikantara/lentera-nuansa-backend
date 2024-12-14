@@ -13,6 +13,18 @@ namespace nuansa::config {
 		std::string host;
 		std::string logLevel;
 		std::string logPath;
+		std::string githubClientId;
+		std::string githubClientSecret;
+		std::string githubRedirectUri;
+		std::string githubApiUrl;
+		std::string githubTokenValidationUrl;
+		std::string githubUserApiUrl;
+		std::string githubUserEmailsUrl;
+		std::string googleClientId;
+		std::string googleClientSecret;
+		std::string googleRedirectUri;
+		std::string googleTokenInfoUrl;
+		std::string googleUserInfoUrl;
 	};
 
 	struct DatabaseConfig {

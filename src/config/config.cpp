@@ -90,6 +90,26 @@ namespace nuansa::config {
                 cfg.logPath = "logs/lentera.log"; // default value
             }
 
+            if (serverConfig["github"]) {
+                const auto& githubConfig = serverConfig["github"];
+                cfg.githubClientId = githubConfig["client_id"].as<std::string>();
+                cfg.githubClientSecret = githubConfig["client_secret"].as<std::string>();
+                cfg.githubRedirectUri = githubConfig["redirect_uri"].as<std::string>();
+                cfg.githubApiUrl = githubConfig["api_url"].as<std::string>();
+                cfg.githubTokenValidationUrl = githubConfig["token_validation_url"].as<std::string>();
+                cfg.githubUserApiUrl = githubConfig["user_api_url"].as<std::string>();
+                cfg.githubUserEmailsUrl = githubConfig["user_emails_url"].as<std::string>();
+            }
+
+            if (serverConfig["google"]) {
+                const auto& googleConfig = serverConfig["google"];
+                cfg.googleClientId = googleConfig["client_id"].as<std::string>();
+                cfg.googleClientSecret = googleConfig["client_secret"].as<std::string>();
+                cfg.googleRedirectUri = googleConfig["redirect_uri"].as<std::string>();
+                cfg.googleTokenInfoUrl = googleConfig["token_info_url"].as<std::string>();
+                cfg.googleUserInfoUrl = googleConfig["user_info_url"].as<std::string>();
+            }
+
 
             // Store the validated config
             serverConfig_ = cfg;

@@ -4,7 +4,9 @@
 #include "nuansa/utils/pch.h"
 
 #include "nuansa/utils/crypto/crypto_util.h"
-
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/buffer.h>
 
 namespace nuansa::utils::crypto {
     std::string CryptoUtil::GenerateRandomSalt() {
@@ -50,5 +52,23 @@ namespace nuansa::utils::crypto {
         }
 
         return ss.str();
+    }
+
+    std::string CryptoUtil::Base64Encode(const std::string& input) {
+        BIO *bio, *b64;
+        BUF_MEM *bufferPtr;
+
+        b64 = BIO_new(BIO_f_base64());
+        bio = BIO_new(BIO_s_mem());
+        bio = BIO_push(b64, bio);
+
+        BIO_write(bio, input.c_str(), input.length());
+        BIO_flush(bio);
+        BIO_get_mem_ptr(bio, &bufferPtr);
+
+        std::string result(bufferPtr->data, bufferPtr->length - 1);  // -1 to remove newline
+        BIO_free_all(bio);
+
+        return result;
     }
 }

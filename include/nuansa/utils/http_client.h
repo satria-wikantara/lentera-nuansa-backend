@@ -13,6 +13,7 @@ namespace nuansa::utils {
             std::string body;
             std::string error;
             long statusCode;
+            std::vector<std::string> headers;
         };
 
         HttpClient();
@@ -21,6 +22,14 @@ namespace nuansa::utils {
         Response Get(const std::string& url, 
                     const std::vector<std::string>& headers = {});
         
+        Response Post(const std::string& url,
+                     const std::string& body,
+                     const std::vector<std::string>& headers = {},
+                     const std::string& username = "",
+                     const std::string& password = "");
+        
+        CURL* GetCurl() { return curl; }
+
     private:
         CURL* curl;
         static size_t WriteCallback(void* contents, 
