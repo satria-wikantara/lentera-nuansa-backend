@@ -5,6 +5,7 @@
 
 #include "nuansa/config/config.h"
 #include "nuansa/utils/pattern/circuit_breaker.h"
+#include "nuansa/utils/validation.h"
 
 
 namespace nuansa::config {
@@ -198,51 +199,69 @@ namespace nuansa::config {
     }
 
     void Config::LoadEnvironmentFile() {
-        const char *envPath = std::getenv("ENV_PATH");
+        const char* envPath = std::getenv("ENV_PATH");
         std::string path = envPath ? envPath : ".env";
 
-        if (!std::filesystem::exists(path)) {
-            throw std::runtime_error("Environment file not found at: " + path);
-        }
+        try {
+            // Strict validation options for security
+            nuansa::utils::Validation::PathValidationOptions options;
+            options.maxFileSize = 1024 * 1024;  // 1MB limit
+            options.mustBeRegularFile = true;
+            options.checkWorldReadable = true;
+            options.allowOutsideBaseDir = false;
+            options.allowedExtensions = {".env"};  // Only allow .env files
+            options.baseDir = std::filesystem::current_path();  // Restrict to current directory
 
-        std::ifstream file(path);
-        if (!file.is_open()) {
-            throw std::runtime_error("Failed to open environment file: " + path);
-        }
-        std::string line;
-
-        while (std::getline(file, line)) {
-            // Skip comments and empty lines
-            if (line.empty() || line[0] == '#') {
-                continue;
+            auto normalizedPath = nuansa::utils::Validation::NormalizePath(path, options);
+            
+            if (!std::filesystem::exists(normalizedPath)) {
+                LOG_WARNING << "Environment file not found: " << normalizedPath.string();
+                return;
             }
 
-            // Find the position of the first '='
-            auto pos = line.find('=');
-            if (pos == std::string::npos) continue;
-
-            // Extract key and value
-            std::string key = line.substr(0, pos);
-            std::string value = line.substr(pos + 1);
-
-            // Trim whitespace
-            key.erase(0, key.find_first_not_of(" \t"));
-            key.erase(key.find_last_not_of(" \t") + 1);
-
-            value.erase(0, value.find_first_not_of(" \t"));
-            value.erase(value.find_last_not_of(" \t") + 1);
-
-            // Remove quotes if present
-            if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
-                value = value.substr(1, value.size() - 2);
+            std::ifstream file(normalizedPath, std::ios::in | std::ios::binary);
+            if (!file.is_open()) {
+                throw std::runtime_error("Failed to open file: " + normalizedPath.string());
             }
 
-            // Set the environment variable
+            std::string line;
+
+            while (std::getline(file, line)) {
+                // Skip comments and empty lines
+                if (line.empty() || line[0] == '#') {
+                    continue;
+                }
+
+                // Find the position of the first '='
+                auto pos = line.find('=');
+                if (pos == std::string::npos) continue;
+
+                // Extract key and value
+                std::string key = line.substr(0, pos);
+                std::string value = line.substr(pos + 1);
+
+                // Trim whitespace
+                key.erase(0, key.find_first_not_of(" \t"));
+                key.erase(key.find_last_not_of(" \t") + 1);
+
+                value.erase(0, value.find_first_not_of(" \t"));
+                value.erase(value.find_last_not_of(" \t") + 1);
+
+                // Remove quotes if present
+                if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+                    value = value.substr(1, value.size() - 2);
+                }
+
+                // Set the environment variable
 #ifdef _WIN32
         _putenv_s(key.c_str(), value.c_str());
 #else
-            setenv(key.c_str(), value.c_str(), 1);
+                setenv(key.c_str(), value.c_str(), 1);
 #endif
+            }
+        } catch (const std::exception& e) {
+            LOG_ERROR << "Failed to load environment file: " << e.what();
+            throw;
         }
     }
 

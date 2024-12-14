@@ -3,6 +3,7 @@
 
 #ifdef _WIN32
     #include <Windows.h>
+    #include <sys/stat.h>
 #else
 #include <sys/types.h>
 #include <sys/socket.h>

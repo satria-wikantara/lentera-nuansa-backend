@@ -68,17 +68,9 @@ set_target_properties(libpqxx::pqxx PROPERTIES
 )
 
 # Testing Dependencies
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.15.0
-)
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
-set(BUILD_GTEST ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
 find_package(GTest REQUIRED)
+include(GoogleTest)
+enable_testing()
 
 # Add libcurl
 find_package(CURL REQUIRED)
@@ -178,7 +170,9 @@ foreach (TEST_TARGET ${PROJECT_NAME}_tests user_service_test websocket_handler_t
             RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/tests/Release
     )
     target_link_libraries(${TEST_TARGET} PRIVATE
+            GTest::gtest
             GTest::gtest_main
+            GTest::gmock
             GTest::gmock_main
             ${PROJECT_NAME}_lib
     )

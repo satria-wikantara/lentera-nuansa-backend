@@ -58,3 +58,57 @@ bool nuansa::utils::Validation::ValidatePassword(const std::string &password) {
 
 	return hasUpper && hasLower && hasDigit && hasSpecial;
 }
+
+std::filesystem::path nuansa::utils::Validation::NormalizePath(
+	const std::filesystem::path& path,
+	const PathValidationOptions& options) {
+	
+	std::filesystem::path normalizedPath;
+	try {
+		// Convert to canonical path (resolves "..", ".", and symbolic links)
+		normalizedPath = std::filesystem::canonical(path);
+		
+		// Verify the path is within allowed boundaries
+		std::filesystem::path canonicalBaseDir = std::filesystem::canonical(options.baseDir);
+		
+		if (!options.allowOutsideBaseDir) {
+			// Check if the normalized path is within the base directory
+			auto rel = std::filesystem::relative(normalizedPath, canonicalBaseDir);
+			if (rel.string().find("..") != std::string::npos) {
+				throw std::runtime_error("Access denied: Path must be within the base directory");
+			}
+		}
+
+		if (options.mustBeRegularFile) {
+			if (!std::filesystem::is_regular_file(normalizedPath)) {
+				throw std::runtime_error("Path must be a regular file");
+			}
+		}
+
+		// Check file permissions (on Unix-like systems)
+		#ifndef _WIN32
+		if (options.checkWorldReadable) {
+			struct stat st;
+			if (stat(normalizedPath.c_str(), &st) == 0) {
+				// Ensure file is not world-readable
+				if (st.st_mode & S_IROTH) {
+					throw std::runtime_error("File has unsafe permissions");
+				}
+			}
+		}
+		#endif
+
+		// Check file size if maximum is specified
+		if (options.maxFileSize > 0) {
+			const auto fileSize = std::filesystem::file_size(normalizedPath);
+			if (fileSize > options.maxFileSize) {
+				throw std::runtime_error("File is too large");
+			}
+		}
+
+		return normalizedPath;
+
+	} catch (const std::filesystem::filesystem_error& e) {
+		throw std::runtime_error("Invalid path: " + std::string(e.what()));
+	}
+}
