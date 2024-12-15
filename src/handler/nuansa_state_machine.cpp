@@ -162,7 +162,8 @@ namespace nuansa::handler {
                 {
                     MESSAGE_BODY, {
                         {"success", response.IsSuccess()},
-                        {"message", response.GetMessage()}
+                        {"message", response.GetMessage()},
+                        {"token", response.GetToken()}
                     }
                 }
             };
@@ -188,7 +189,8 @@ namespace nuansa::handler {
                 {
                     MESSAGE_BODY, {
                         {"success", false},
-                        {"message", "Internal server error during registration"}
+                        {"message", "Internal server error during registration"},
+                        {"token", ""}
                     }
                 }
             };

@@ -3,6 +3,20 @@ server:
   port: 9090
   log_level: debug
   log_path: "logs/kudeta.log"
+  github:
+    client_id: "${GITHUB_CLIENT_ID}"
+    client_secret: "${GITHUB_CLIENT_SECRET}"
+    redirect_uri: "${GITHUB_REDIRECT_URI}"
+    api_url: "${GITHUB_API_URL}"
+    token_validation_url: "${GITHUB_TOKEN_VALIDATION_URL}"
+    user_api_url: "${GITHUB_USER_API_URL}"
+    user_emails_url: "${GITHUB_USER_EMAILS_URL}"
+  google:
+    client_id: "${GOOGLE_CLIENT_ID}"
+    client_secret: "${GOOGLE_CLIENT_SECRET}"
+    redirect_uri: "${GOOGLE_REDIRECT_URI}"
+    token_info_url: "${GOOGLE_TOKEN_INFO_URL}"
+    user_info_url: "${GOOGLE_USER_INFO_URL}"
 database:
   host: "${DB_HOST}"
   port: "${DB_PORT}"
@@ -16,17 +30,4 @@ circuit_breaker:
   success_threshold: 2
   reset_timeout_seconds: 60
   timeout_seconds: 2
-github:
-  client_id: "${GITHUB_CLIENT_ID}"
-  client_secret: "${GITHUB_CLIENT_SECRET}"
-  redirect_uri: "${GITHUB_REDIRECT_URI}"
-  api_url: "${GITHUB_API_URL}"
-  token_validation_url: "${GITHUB_TOKEN_VALIDATION_URL}"
-  user_api_url: "${GITHUB_USER_API_URL}"
-  user_emails_url: "${GITHUB_USER_EMAILS_URL}"
-google:
-  client_id: "${GOOGLE_CLIENT_ID}"
-  client_secret: "${GOOGLE_CLIENT_SECRET}"
-  redirect_uri: "${GOOGLE_REDIRECT_URI}"
-  token_info_url: "${GOOGLE_TOKEN_INFO_URL}"
-  user_info_url: "${GOOGLE_USER_INFO_URL}"
+

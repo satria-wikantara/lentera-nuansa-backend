@@ -92,24 +92,108 @@ namespace nuansa::config {
 
             if (serverConfig["github"]) {
                 const auto& githubConfig = serverConfig["github"];
-                cfg.githubClientId = githubConfig["client_id"].as<std::string>();
-                cfg.githubClientSecret = githubConfig["client_secret"].as<std::string>();
-                cfg.githubRedirectUri = githubConfig["redirect_uri"].as<std::string>();
-                cfg.githubApiUrl = githubConfig["api_url"].as<std::string>();
-                cfg.githubTokenValidationUrl = githubConfig["token_validation_url"].as<std::string>();
-                cfg.githubUserApiUrl = githubConfig["user_api_url"].as<std::string>();
-                cfg.githubUserEmailsUrl = githubConfig["user_emails_url"].as<std::string>();
+
+                // Load and validate host
+                if (githubConfig["client_id"]) {
+                    const auto clientId = githubConfig["client_id"].as<std::string>();
+                    cfg.githubClientId = ResolveEnvironmentVariable(clientId);
+                    if (cfg.githubClientId.empty()) {
+                        throw std::runtime_error("Github client id cannot be empty");
+                    }
+                }
+
+                if (githubConfig["client_secret"]) {
+                    const auto clientSecret = githubConfig["client_secret"].as<std::string>();
+                    cfg.githubClientSecret = ResolveEnvironmentVariable(clientSecret);
+                    if (cfg.githubClientSecret.empty()) {
+                        throw std::runtime_error("Github client secret cannot be empty");
+                    }
+                }
+
+                if (githubConfig["redirect_uri"]) {
+                    const auto redirectUri = githubConfig["redirect_uri"].as<std::string>();
+                    cfg.githubRedirectUri = ResolveEnvironmentVariable(redirectUri);
+                    if (cfg.githubRedirectUri.empty()) {
+                        throw std::runtime_error("Github redirect uri cannot be empty");
+                    }
+                }
+
+                if (githubConfig["api_url"]) {
+                    const auto apiUrl = githubConfig["api_url"].as<std::string>();
+                    cfg.githubApiUrl = ResolveEnvironmentVariable(apiUrl);
+                    if (cfg.githubApiUrl.empty()) {
+                        throw std::runtime_error("Github api url cannot be empty");
+                    }
+                }
+
+                if (githubConfig["token_validation_url"]) {
+                    const auto tokenValidationUrl = githubConfig["token_validation_url"].as<std::string>();
+                    cfg.githubTokenValidationUrl = ResolveEnvironmentVariable(tokenValidationUrl);
+                    if (cfg.githubTokenValidationUrl.empty()) {
+                        throw std::runtime_error("Github token validation url cannot be empty");
+                    }
+                }
+
+                if (githubConfig["user_api_url"]) {
+                    const auto userApiUrl = githubConfig["user_api_url"].as<std::string>();
+                    cfg.githubUserApiUrl = ResolveEnvironmentVariable(userApiUrl);
+                    if (cfg.githubUserApiUrl.empty()) {
+                        throw std::runtime_error("Github user api url cannot be empty");
+                    }
+                }
+
+                if (githubConfig["user_emails_url"]) {
+                    const auto userEmailsUrl = githubConfig["user_emails_url"].as<std::string>();
+                    cfg.githubUserEmailsUrl = ResolveEnvironmentVariable(userEmailsUrl);
+                    if (cfg.githubUserEmailsUrl.empty()) {
+                        throw std::runtime_error("Github user emails url cannot be empty");
+                    }
+                }
             }
 
             if (serverConfig["google"]) {
                 const auto& googleConfig = serverConfig["google"];
-                cfg.googleClientId = googleConfig["client_id"].as<std::string>();
-                cfg.googleClientSecret = googleConfig["client_secret"].as<std::string>();
-                cfg.googleRedirectUri = googleConfig["redirect_uri"].as<std::string>();
-                cfg.googleTokenInfoUrl = googleConfig["token_info_url"].as<std::string>();
-                cfg.googleUserInfoUrl = googleConfig["user_info_url"].as<std::string>();
-            }
 
+                if (googleConfig["client_id"]) {
+                    const auto clientId = googleConfig["client_id"].as<std::string>();
+                    cfg.googleClientId = ResolveEnvironmentVariable(clientId);
+                    if (cfg.googleClientId.empty()) {
+                        throw std::runtime_error("Google client id cannot be empty");
+                    }
+                }
+
+                if (googleConfig["user_info_url"]) {
+                    const auto userInfoUrl = googleConfig["user_info_url"].as<std::string>();
+                    cfg.googleUserInfoUrl = ResolveEnvironmentVariable(userInfoUrl);
+                    if (cfg.googleUserInfoUrl.empty()) {
+                        throw std::runtime_error("Google user info url cannot be empty");
+                    }
+                }
+
+                if (googleConfig["redirect_uri"]) {
+                    const auto redirectUri = googleConfig["redirect_uri"].as<std::string>();
+                    cfg.googleRedirectUri = ResolveEnvironmentVariable(redirectUri);
+                    if (cfg.googleRedirectUri.empty()) {
+                        throw std::runtime_error("Google redirect uri cannot be empty");
+                    }
+                }
+
+                if (googleConfig["token_info_url"]) {
+                    const auto tokenInfoUrl = googleConfig["token_info_url"].as<std::string>();
+                    cfg.googleTokenInfoUrl = ResolveEnvironmentVariable(tokenInfoUrl);
+                    if (cfg.googleTokenInfoUrl.empty()) {
+                        throw std::runtime_error("Google token info url cannot be empty");
+                    }
+                }
+
+                if (googleConfig["user_info_url"]) {
+                    const auto userInfoUrl = googleConfig["user_info_url"].as<std::string>();
+                    cfg.googleUserInfoUrl = ResolveEnvironmentVariable(userInfoUrl);
+                    if (cfg.googleUserInfoUrl.empty()) {
+                        throw std::runtime_error("Google user info url cannot be empty");
+                    }
+                }
+            }
 
             // Store the validated config
             serverConfig_ = cfg;

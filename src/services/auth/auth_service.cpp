@@ -340,13 +340,13 @@ namespace nuansa::services::auth {
 
             // Exchange code for access token
             nlohmann::json requestBody = {
-                {"client_id", GITHUB_CLIENT_ID},
-                {"client_secret", GITHUB_CLIENT_SECRET},
+                {"client_id", Config::GetInstance().GetServerConfig().githubClientId},
+                {"client_secret", Config::GetInstance().GetServerConfig().githubClientSecret},
                 {"code", *credentials.code},
-                {"redirect_uri", GITHUB_REDIRECT_URI}
+                {"redirect_uri", Config::GetInstance().GetServerConfig().githubRedirectUri}
             };
 
-            LOG_DEBUG << "Exchanging code for token";
+            LOG_DEBUG << "Exchanging code for token" << requestBody.dump();
             auto tokenResponse = httpClient->Post(
                 "https://github.com/login/oauth/access_token",
                 requestBody.dump(),
