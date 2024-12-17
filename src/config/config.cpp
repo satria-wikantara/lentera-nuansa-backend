@@ -195,6 +195,17 @@ namespace nuansa::config {
                 }
             }
 
+            if (serverConfig["jwt"]) {
+                const auto& jwtConfig = serverConfig["jwt"];
+                if (jwtConfig["secret"]) {
+                    const auto secret = jwtConfig["secret"].as<std::string>();
+                    cfg.jwtSecret = ResolveEnvironmentVariable(secret);
+                    if (cfg.jwtSecret.empty()) {
+                        throw std::runtime_error("JWT secret cannot be empty");
+                    }
+                }
+            }
+
             // Store the validated config
             serverConfig_ = cfg;
         } catch (const YAML::Exception &e) {

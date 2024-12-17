@@ -437,6 +437,21 @@ CREATE TABLE users
 
 CREATE INDEX idx_users_username ON users (username);
 CREATE INDEX idx_users_email ON users (email);
+
+
+-- Create tokens table
+CREATE TABLE tokens (
+    token_id VARCHAR(255) PRIMARY KEY,
+    user_id BIGINT NOT NULL,  -- Changed to match users.id type
+    token_type VARCHAR(50) NOT NULL, -- 'access' or 'refresh'
+    expiry TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_revoked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_tokens_expiry ON tokens(expiry);
+CREATE INDEX idx_tokens_user_id ON tokens(user_id);
 ```
 
 ## Development Setup

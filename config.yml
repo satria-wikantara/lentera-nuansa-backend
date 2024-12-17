@@ -17,6 +17,8 @@ server:
     redirect_uri: "${GOOGLE_REDIRECT_URI}"
     token_info_url: "${GOOGLE_TOKEN_INFO_URL}"
     user_info_url: "${GOOGLE_USER_INFO_URL}"
+  jwt:
+    secret: "${JWT_SECRET}"
 database:
   host: "${DB_HOST}"
   port: "${DB_PORT}"

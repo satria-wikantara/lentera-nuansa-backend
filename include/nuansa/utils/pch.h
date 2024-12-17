@@ -14,6 +14,7 @@
 #include <memory>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <functional>
 #include <iostream>
@@ -29,6 +30,7 @@
 #include <time.h>
 #include <fstream>
 #include <stdexcept>
+#include <ctime>
 
 // Boost Library
 #include <boost/uuid/uuid.hpp>
@@ -52,6 +54,7 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
+#include <openssl/hmac.h>
 #include <pqxx/pqxx>
 
 // Project Headers

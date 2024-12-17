@@ -11,6 +11,7 @@
 #include "nuansa/services/auth/register_message.h"
 #include "nuansa/utils/http_client.h"
 #include "nuansa/config/config.h"
+#include "nuansa/services/token/token_service.h"
 
 using namespace nuansa::config;
 
@@ -22,7 +23,9 @@ namespace nuansa::services::auth {
 
     AuthService::AuthService() 
         : gen(rd()), 
-          httpClient(std::make_unique<utils::HttpClient>()) {
+          httpClient(std::make_unique<utils::HttpClient>()),
+          tokenService_(std::make_unique<nuansa::services::token::TokenService>(
+              Config::GetInstance().GetServerConfig().jwtSecret)) {
         // Get GitHub config from ServerConfig
         const auto& config = Config::GetInstance().GetServerConfig();
         GITHUB_CLIENT_ID = config.githubClientId;
@@ -58,68 +61,24 @@ namespace nuansa::services::auth {
             return nuansa::services::auth::AuthResponse{false, "", "Invalid credentials"};
         }
 
-        // Generate new token
-        const std::string token = GenerateToken(request.GetUsername());
+        // Generate tokens using TokenManager
+        auto accessToken = tokenService_->GenerateAccessToken(request.GetUsername());
+        auto refreshToken = tokenService_->GenerateRefreshToken(request.GetUsername());
 
-        // Store token info
-        const TokenInfo tokenInfo{
-            request.GetUsername(),
-            std::chrono::system_clock::now() + std::chrono::hours(24)
+        nlohmann::json tokenResponse = {
+            {"access_token", accessToken.ToJson()},
+            {"refresh_token", refreshToken.ToJson()}
         };
-        activeTokens[token] = tokenInfo;
 
-        return nuansa::services::auth::AuthResponse{true, token, "Authentication successful"};
+        return nuansa::services::auth::AuthResponse{true, tokenResponse.dump(), "Authentication successful"};
     }
 
-    bool AuthService::ValidateToken(const std::string &token) {
-        std::lock_guard<std::mutex> lock(authMutex);
-
-        const auto it = activeTokens.find(token);
-        if (it == activeTokens.end()) {
-            return false;
-        }
-
-        if (std::chrono::system_clock::now() > it->second.expirationTime) {
-            activeTokens.erase(it);
-            return false;
-        }
-
-        return true;
+    void AuthService::Logout(const std::string& token) {
+        tokenService_->LogoutToken(token);
     }
 
-    void AuthService::Logout(const std::string &token) {
-        std::lock_guard<std::mutex> lock(authMutex);
-        activeTokens.erase(token);
-    }
-
-    std::optional<std::string> AuthService::GetUsernameFromToken(const std::string &token) {
-        std::lock_guard<std::mutex> lock(authMutex);
-
-        if (const auto it = activeTokens.find(token); it != activeTokens.end() &&
-                                                      std::chrono::system_clock::now() <= it->second.expirationTime) {
-            return it->second.username;
-        }
-
-        return std::nullopt;
-    }
-
-    std::string AuthService::GenerateToken(const std::string &username) {
-        boost::uuids::random_generator gen;
-        const auto uuid = gen();
-        return boost::uuids::to_string(uuid);
-    }
-
-    void AuthService::CleanupExpiredTokens() {
-        std::lock_guard<std::mutex> lock(authMutex);
-        const auto now = std::chrono::system_clock::now();
-
-        for (auto it = activeTokens.begin(); it != activeTokens.end();) {
-            if (now > it->second.expirationTime) {
-                it = activeTokens.erase(it);
-            } else {
-                ++it;
-            }
-        }
+    std::optional<std::string> AuthService::GetUsernameFromToken(const std::string& token) {
+        return tokenService_->GetUsernameFromToken(token);
     }
 
     nuansa::services::auth::AuthResponse AuthService::Register(const nuansa::services::auth::RegisterRequest &request) {
@@ -179,14 +138,13 @@ namespace nuansa::services::auth {
             return AuthResponse{false, "", "Registration failed"};
         }
 
-        // Generate token and complete registration
-        const std::string token = GenerateToken(*request.GetUsername());
-        activeTokens[token] = TokenInfo{
-            *request.GetUsername(),
-            std::chrono::system_clock::now() + std::chrono::hours(24)
-        };
+        // Generate tokens and save to repository
+        auto token = tokenService_->GenerateAccessToken(*request.GetUsername());
+        if (!tokenService_->SaveNewToken(token, *request.GetUsername(), "access")) {
+            return AuthResponse{false, "", "Failed to create authentication token"};
+        }
 
-        return AuthResponse{true, token, "Registration successful"};
+        return AuthResponse{true, token.ToJson().dump(), "Registration successful"};
     }
 
     AuthResponse AuthService::HandleOAuthRegistration(const RegisterRequest& request) {
@@ -219,29 +177,49 @@ namespace nuansa::services::auth {
             return AuthResponse{false, "", "Failed to validate OAuth token"};
         }
 
-        // Check if user exists, if not create new user
-        auto& userService = nuansa::services::user::UserService::GetInstance();
-        if (!userService.UserExists(userInfo->email)) {
-            // Create user with OAuth information
-            if (!userService.CreateUser(nuansa::models::User{
-                userInfo->username,
-                userInfo->email,
-                "",  // No password for OAuth users
-                "",  // No salt needed
-                userInfo->picture
-            })) {
-                return AuthResponse{false, "", "Failed to create user account"};
+        try {
+            std::lock_guard<std::mutex> lock(authMutex);
+            
+            // Check if user exists, if not create new user
+            auto& userService = nuansa::services::user::UserService::GetInstance();
+            if (!userService.UserExists(userInfo->email)) {
+                // Create user with OAuth information
+                if (!userService.CreateUser(nuansa::models::User{
+                    userInfo->username,
+                    userInfo->email,
+                    "",  // No password for OAuth users
+                    "",  // No salt needed
+                    userInfo->picture
+                })) {
+                    return AuthResponse{false, "", "Failed to create user account"};
+                }
             }
+
+            // Generate access and refresh tokens
+            auto accessToken = tokenService_->GenerateAccessToken(userInfo->email);
+            auto refreshToken = tokenService_->GenerateRefreshToken(userInfo->email);
+
+            if (!tokenService_->SaveNewToken(accessToken, userInfo->email, "access") ||
+                !tokenService_->SaveNewToken(refreshToken, userInfo->email, "refresh")) {
+                return AuthResponse{false, "", "Failed to create authentication tokens"};
+            }
+
+            // Combine tokens into response
+            nlohmann::json tokenResponse = {
+                {"access_token", accessToken.ToJson()},
+                {"refresh_token", refreshToken.ToJson()}
+            };
+
+            return AuthResponse{
+                true, 
+                tokenResponse.dump(),
+                "OAuth registration successful"
+            };
+
+        } catch (const std::exception& e) {
+            LOG_ERROR << "Failed to complete registration: " << e.what();
+            return AuthResponse{false, "", "Internal server error during registration"};
         }
-
-        // Generate token and complete registration
-        const std::string token = GenerateToken(userInfo->email);
-        activeTokens[token] = TokenInfo{
-            userInfo->email,
-            std::chrono::system_clock::now() + std::chrono::hours(24)
-        };
-
-        return AuthResponse{true, token, "OAuth registration successful"};
     }
 
     std::optional<AuthService::OAuthUserInfo> AuthService::ValidateGoogleToken(

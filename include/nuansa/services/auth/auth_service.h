@@ -7,6 +7,7 @@
 #include "nuansa/services/auth/register_message.h"
 #include "nuansa/services/auth/auth_types.h"
 #include "nuansa/utils/http_client.h"
+#include "nuansa/services/token/token_service.h"
 
 namespace nuansa::services::auth {
 	class AuthService {
@@ -16,8 +17,6 @@ namespace nuansa::services::auth {
 		static AuthService &GetInstance();
 
 		nuansa::services::auth::AuthResponse Authenticate(const nuansa::services::auth::AuthRequest &request);
-
-		bool ValidateToken(const std::string &token);
 
 		void Logout(const std::string &token);
 
@@ -35,17 +34,9 @@ namespace nuansa::services::auth {
 		};
 
 	private:
-		static std::string GenerateToken(const std::string &username);
 
-		void CleanupExpiredTokens();
-
-		struct TokenInfo {
-			std::string username;
-			std::chrono::system_clock::time_point expirationTime;
-		};
-
+		std::unique_ptr<nuansa::services::token::TokenService> tokenService_;
 		std::unordered_map<std::string, std::string> userCredentials; // username -> password hash
-		std::unordered_map<std::string, TokenInfo> activeTokens; // token -> TokenInfo
 		std::mutex authMutex;
 		std::random_device rd;
 		std::mt19937 gen;

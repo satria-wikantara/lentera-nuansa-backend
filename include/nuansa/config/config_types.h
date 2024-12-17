@@ -13,6 +13,7 @@ namespace nuansa::config {
 		std::string host;
 		std::string logLevel;
 		std::string logPath;
+		std::string jwtSecret;
 		std::string githubClientId;
 		std::string githubClientSecret;
 		std::string githubRedirectUri;
