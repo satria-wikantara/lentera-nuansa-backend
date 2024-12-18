@@ -37,7 +37,7 @@ namespace nuansa::services::auth {
 
 		std::unique_ptr<nuansa::services::token::TokenService> tokenService_;
 		std::unordered_map<std::string, std::string> userCredentials; // username -> password hash
-		std::mutex authMutex;
+		std::timed_mutex authMutex;
 		std::random_device rd;
 		std::mt19937 gen;
 

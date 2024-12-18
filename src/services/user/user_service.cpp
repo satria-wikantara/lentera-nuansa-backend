@@ -53,8 +53,52 @@ namespace nuansa::services::user {
         }
     }
 
-    bool UserService::UserExists(const std::string &username) const {
-        return GetUserByUsername(username).has_value();
+    bool UserService::UserExists(const std::string& username) const {
+        try {
+            LOG_DEBUG << "Checking if user exists: " << username;
+            
+            if (!nuansa::database::ConnectionPool::GetInstance().IsInitialized()) {
+                LOG_ERROR << "Connection pool not initialized";
+                throw std::runtime_error("Database connection pool not initialized");
+            }
+
+            auto conn = nuansa::database::ConnectionPool::GetInstance().AcquireConnection(
+                std::chrono::milliseconds(1000)
+            );
+
+            if (!conn) {
+                LOG_ERROR << "Failed to acquire database connection";
+                throw std::runtime_error("Failed to acquire database connection");
+            }
+
+            nuansa::database::ConnectionGuard guard(std::move(conn));
+            
+            return guard.ExecuteWithRetry([&](pqxx::connection& db_conn) {
+                try {
+                    pqxx::work txn{db_conn};
+                    
+                    LOG_DEBUG << "Executing user exists query";
+                    auto result = txn.exec_params(
+                        "SELECT COUNT(*) FROM users WHERE email = $1 OR username = $1",
+                        username
+                    );
+                    
+                    txn.commit();
+                    
+                    bool exists = !result.empty() && result[0][0].as<int>() > 0;
+                    LOG_DEBUG << "User exists query result: " << exists;
+                    
+                    return exists;
+                } catch (const std::exception& e) {
+                    LOG_ERROR << "Database query failed: " << e.what();
+                    throw; // Let ExecuteWithRetry handle the retry logic
+                }
+            });
+
+        } catch (const std::exception& e) {
+            LOG_ERROR << "Error checking if user exists: " << e.what();
+            throw; // Re-throw to be caught by caller
+        }
     }
 
     // TODO: Fix error in this function when registering new user

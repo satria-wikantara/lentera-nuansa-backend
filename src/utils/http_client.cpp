@@ -30,7 +30,7 @@ namespace nuansa::utils {
         std::string responseData;
 
         if (!curl) {
-            curl = curl_easy_init();  // Try to reinitialize
+            curl = curl_easy_init();
             if (!curl) {
                 LOG_ERROR << "CURL not initialized and reinit failed";
                 response.error = "CURL initialization failed";
@@ -57,9 +57,20 @@ namespace nuansa::utils {
             setopt(CURLOPT_URL, url.c_str());
             setopt(CURLOPT_FOLLOWLOCATION, 1L);
             setopt(CURLOPT_NOSIGNAL, 1L);
-            setopt(CURLOPT_TIMEOUT, 30L);
+            
+            // Add timeouts
+            setopt(CURLOPT_TIMEOUT, 10L);           // Total timeout in seconds
+            setopt(CURLOPT_CONNECTTIMEOUT, 5L);     // Connection timeout
+            setopt(CURLOPT_LOW_SPEED_TIME, 3L);     // Time in seconds for low speed
+            setopt(CURLOPT_LOW_SPEED_LIMIT, 100L);  // Speed in bytes per second
+            
             setopt(CURLOPT_SSL_VERIFYPEER, 1L);
             setopt(CURLOPT_SSL_VERIFYHOST, 2L);
+            
+            // Verbose debug output
+            #ifdef DEBUG
+            setopt(CURLOPT_VERBOSE, 1L);
+            #endif
             
             // Callbacks
             setopt(CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -87,8 +98,17 @@ namespace nuansa::utils {
                 setopt(CURLOPT_HTTPHEADER, list);
             }
 
-            // Perform request
-            CURLcode res = curl_easy_perform(curl);
+            // Perform request with timeout handling
+            CURLcode res;
+            {
+                const auto start = std::chrono::steady_clock::now();
+                res = curl_easy_perform(curl);
+                const auto duration = std::chrono::steady_clock::now() - start;
+                LOG_DEBUG << "Request took " 
+                         << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() 
+                         << "ms";
+            }
+
             if (res != CURLE_OK) {
                 throw std::runtime_error(std::string("CURL request failed: ") + 
                                        curl_easy_strerror(res));
@@ -101,13 +121,14 @@ namespace nuansa::utils {
             response.success = (httpCode >= 200 && httpCode < 300);
 
             if (!response.success) {
-                LOG_ERROR << "Request failed with status " << httpCode << ": " << responseData;
+                LOG_ERROR << "Request failed with status " << httpCode 
+                         << ": " << responseData;
             }
 
             return response;
 
         } catch (const std::exception& e) {
-            LOG_ERROR << "HTTP GET failed: " << e.what();
+            LOG_ERROR << "HTTP GET failed for URL " << url << ": " << e.what();
             response.error = e.what();
             return response;
         }

@@ -14,68 +14,68 @@ namespace nuansa::database {
 
         ~ConnectionGuard() {
             if (conn_) {
-                ConnectionPool::GetInstance().ReturnConnection(std::move(conn_));
-            }
-        }
-
-        template<typename Func>
-        auto ExecuteWithRetry(Func &&func) -> decltype(func(std::declval<pqxx::connection &>())) {
-            const auto &[maxRetries, initialDelay, maxDelay, backoffMultiplier] =
-                    ConnectionPool::GetInstance().GetRetryConfig();
-            auto delay = initialDelay;
-            decltype(func(*conn_)) result;
-
-            // Retry loop: continues on transient errors, exits on success or fatal errors
-            for (size_t attempt = 0; attempt < maxRetries; ++attempt) {
                 try {
-                    if (!conn_) {
-                        throw std::runtime_error("No valid connection");
-                    }
-
-                    try {
-                        conn_->cancel_query();
-                    } catch (...) {
-                        // Ignore cancel errors
-                    }
-                    result = func(*conn_);
-                } catch (const pqxx::broken_connection &e) {
-                    throw utils::exception::DatabaseBrokenConnectionException(e.what());
-                } catch (const std::exception &e) {
-                    if (attempt + 1 == maxRetries || !IsTransientError(e)) {
-                        LOG_ERROR << "Database operation failed after " << (attempt + 1) << " attempts: " << e.what();
-                        throw utils::exception::NonTransientDatabaseException(e.what());
-                    }
-
-                    // Only for transient errors:
-                    std::this_thread::sleep_for(delay);
-                    delay = std::min(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::duration<double, std::milli>(
-                                delay.count() * backoffMultiplier
-                            )
-                        ),
-                        maxDelay
-                    );
+                    ConnectionPool::GetInstance().ReturnConnection(std::move(conn_));
+                } catch (...) {
+                    // Just log, don't throw from destructor
+                    LOG_ERROR << "Failed to return connection to pool";
                 }
-
-                if (result) {
-                    return result;
-                }
-                // Loop will continue to next iteration for transient errors
             }
-
-            throw utils::exception::Exception("Unexpected error in ExecuteWithRetry");
         }
 
-        static bool IsTransientError(const std::exception &e) {
-            const std::string error = e.what();
+        template<typename F>
+        auto ExecuteWithRetry(F&& func, int maxRetries = 3) -> decltype(func(std::declval<pqxx::connection&>())) {
+            if (!conn_) {
+                throw std::runtime_error("No valid connection");
+            }
 
-            // Common PostgreSQL transient error codes
-            return error.find("connection lost") != std::string::npos ||
-                   error.find("server closed the connection unexpectedly") != std::string::npos ||
-                   error.find("timeout") != std::string::npos ||
-                   error.find("deadlock") != std::string::npos ||
-                   error.find("connection reset by peer") != std::string::npos;
+            for (int attempt = 1; attempt <= maxRetries; ++attempt) {
+                try {
+                    if (!conn_->is_open()) {
+                        LOG_WARNING << "Connection closed, attempting to reconnect (attempt " << attempt << ")";
+                        conn_ = ConnectionPool::GetInstance().AcquireConnection(
+                            std::chrono::milliseconds(1000)
+                        );
+                        if (!conn_ || !conn_->is_open()) {
+                            throw std::runtime_error("Failed to acquire new connection");
+                        }
+                    }
+
+                    return func(*conn_);
+
+                } catch (const pqxx::broken_connection& e) {
+                    LOG_ERROR << "Database connection broken: " << e.what();
+                    if (attempt == maxRetries) throw;
+                    
+                    // Get new connection for retry
+                    conn_ = ConnectionPool::GetInstance().AcquireConnection(
+                        std::chrono::milliseconds(1000)
+                    );
+                    
+                } catch (const pqxx::sql_error& e) {
+                    LOG_ERROR << "SQL error: " << e.what() << " (attempt " << attempt << "/" << maxRetries << ")";
+                    if (attempt == maxRetries) throw;
+                    
+                    // For SQL errors, check if we should retry
+                    if (e.sqlstate() == "40001" || // serialization_failure
+                        e.sqlstate() == "40P01") { // deadlock_detected
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100 * attempt));
+                        continue;
+                    }
+                    throw; // Don't retry other SQL errors
+                    
+                } catch (const std::exception& e) {
+                    LOG_ERROR << "Database error: " << e.what() << " (attempt " << attempt << "/" << maxRetries << ")";
+                    if (attempt == maxRetries) {
+                        throw std::runtime_error("Unexpected error in ExecuteWithRetry: " + std::string(e.what()));
+                    }
+                }
+
+                // Exponential backoff between retries
+                std::this_thread::sleep_for(std::chrono::milliseconds(100 * attempt));
+            }
+
+            throw std::runtime_error("Max retries exceeded");
         }
 
     private:

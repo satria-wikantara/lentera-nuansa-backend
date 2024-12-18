@@ -1,5 +1,6 @@
 #include "nuansa/services/token/token_repository.h"
 #include "nuansa/database/db_connection_pool.h"
+#include "nuansa/database/db_connection_guard.h"
 #include "nuansa/utils/log/log.h"
 
 namespace nuansa::services::token {
@@ -16,26 +17,46 @@ namespace nuansa::services::token {
         return std::string(buffer);
     }
 
-    bool TokenRepository::SaveToken(const TokenService::Token& token,
-                                  const std::string& userId,
-                                  const std::string& tokenType) {
+    bool TokenRepository::SaveToken(const TokenService::Token& token, const std::string& userId, const std::string& tokenType) {
         try {
             auto conn = database::ConnectionPool::GetInstance().AcquireConnection();
-            pqxx::work txn{*conn};
+            if (!conn) {
+                LOG_ERROR << "Failed to acquire database connection";
+                return false;
+            }
+
+            database::ConnectionGuard guard(std::move(conn));
             
-            std::string expiryStr = FormatTimestamp(token.expiry);
-            
-            txn.exec_params(
-                "INSERT INTO tokens (token_id, user_id, token_type, expiry, is_revoked) "
-                "VALUES ($1, $2, $3, $4::timestamp, FALSE)",
-                token.token_id,
-                userId,
-                tokenType,
-                expiryStr
-            );
-            
-            txn.commit();
-            return true;
+            return guard.ExecuteWithRetry([&](pqxx::connection& db_conn) {
+                pqxx::work txn{db_conn};
+                
+                // First get the user_id from users table using email
+                auto userResult = txn.exec_params(
+                    "SELECT id FROM users WHERE email = $1",
+                    userId  // This is actually the email
+                );
+                
+                if (userResult.empty()) {
+                    LOG_ERROR << "User not found: " << userId;
+                    return false;
+                }
+                
+                int64_t numericUserId = userResult[0][0].as<int64_t>();
+                
+                // Now save the token with the numeric user_id
+                txn.exec_params(
+                    "INSERT INTO tokens (token_id, user_id, token_type, expiry, is_revoked) "
+                    "VALUES ($1, $2, $3, $4::timestamp, FALSE)",
+                    token.token_id,
+                    numericUserId,  // Use the numeric ID instead of email
+                    tokenType,
+                    FormatTimestamp(token.expiry)  // Format time_t to PostgreSQL timestamp string
+                );
+
+                txn.commit();
+                return true;
+            });
+
         } catch (const std::exception& e) {
             LOG_ERROR << "Failed to save token: " << e.what();
             return false;
